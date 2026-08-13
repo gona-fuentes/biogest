@@ -5,9 +5,9 @@ from django.db.models import Q
 from .forms import ExamenForm
 import uuid
 from django.core.paginator import Paginator
-#from django.http import HttpResponse
-#from django.template.loader import get_template
-#from xhtml2pdf import pisa
+
+
+
 
 
 
@@ -149,23 +149,12 @@ def detalle_muestra(request, examen_id):
 @login_required
 @user_passes_test(es_personal_autorizado, login_url='/inicio/')
 def generar_informe_pdf(request, examen_id):
-    # Permite descargar el PDF tanto a patólogos como a laboratorio
+    # Buscamos la muestra y su diagnóstico final
     muestra = get_object_or_404(Examen, id=examen_id)
     diagnostico_final = muestra.comentarios.filter(tipo='Diagnóstico / Nota').order_by('-created_at').first()
     
-    context = {
+    # Renderizamos la plantilla HTML normal (El navegador hará el resto)
+    return render(request, 'informe_pdf.html', {
         'muestra': muestra,
         'diagnostico': diagnostico_final
-    }
-    
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="Informe_Biopsia_{muestra.numero_correlativo}.pdf"'
-    
-    template = get_template('informe_pdf.html')
-    html = template.render(context)
-    
-    pisa_status = pisa.CreatePDF(html, dest=response)
-    if pisa_status.err:
-        return HttpResponse('Tuvimos errores al generar el PDF')
-        
-    return response
+    })
