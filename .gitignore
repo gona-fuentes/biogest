@@ -1,0 +1,17 @@
+# Entornos Virtuales
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+
+# Base de datos local de Django
+db.sqlite3
+
+# Archivos de entorno y seguridad
+.env
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db

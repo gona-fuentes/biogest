@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Bandeja Patólogo - Biogest{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Bandeja de Entrada - Patología 🔬</h1>
+    <p class="text-gray-500 text-sm">Muestras pendientes de evaluación y diagnóstico.</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for muestra in muestras %}
+    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-patologia hover:shadow-lg transition">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <span class="text-xs font-bold text-gray-500 uppercase">Correlativo</span>
+                <h3 class="text-lg font-bold text-clinica">{{ muestra.numero_correlativo }}</h3>
+            </div>
+            <span class="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-yellow-300">
+                {{ muestra.estado }}
+            </span>
+        </div>
+        <div class="mb-4 text-sm text-gray-600">
+            <p><strong>Paciente:</strong> {{ muestra.paciente_nombre }}</p>
+            <p><strong>Tipo:</strong> {{ muestra.tipo_examen.nombre }}</p>
+            <p><strong>Recepción:</strong> {{ muestra.fecha_recepcion|date:"d/m/Y" }}</p>
+        </div>
+        <a href="{% url 'detalle_muestra' muestra.id %}" class="block text-center w-full bg-gray-50 hover:bg-gray-100 text-clinica font-semibold py-2 px-4 border border-gray-200 rounded transition">
+            Evaluar Muestra
+        </a>
+    </div>
+    {% empty %}
+    <div class="col-span-3 text-center py-10 bg-white rounded-lg border border-dashed border-gray-300 text-gray-500">
+        No hay muestras pendientes en la bandeja. ¡Buen trabajo!
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+username='clinico1', 
+        password='Password123!', 
+        email='clinico@biogest.cl', 
+        laboratorio=lab
+
+
+username='dr_patologo', 
+        password='Password123!', 
+        email='patologo@biogest.cl', 
+        laboratorio=lab

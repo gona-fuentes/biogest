@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Biogest - Trazabilidad{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        clinica: '#0ea5e9', // Azul médico
+                        patologia: '#f59e0b', // Naranja de alerta/espera
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Barra de Navegación -->
+<nav class="bg-clinica text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            
+            <a href="{% url 'inicio' %}" class="text-xl font-bold tracking-wider hover:text-gray-200 transition">
+                🔬 BIOGEST
+            </a>
+            
+            <div>
+                {% if user.is_authenticated %}
+                    <span class="mr-4 text-sm">Hola, <strong>{{ user.username }}</strong></span>
+                    <form action="{% url 'logout' %}" method="post" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm transition">Salir</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6">
+        {% block content %}
+        <!-- El contenido de las otras vistas se inyectará aquí -->
+        {% endblock %}
+    </main>
+
+    <!-- Pie de página opcional -->
+    <footer class="bg-white border-t border-gray-200 py-4 text-center text-xs text-gray-500">
+        &copy; 2026 Biogest - Sistema de Trazabilidad
+    </footer>
+
+</body>
+</html>
