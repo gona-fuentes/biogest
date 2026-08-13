@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>Informe Biopsia - {{ muestra.numero_correlativo }}</title>
+    <style>
+        /* Configuración de la hoja tamaño Carta */
+        @page {
+            size: letter portrait;
+            margin: 2cm;
+        }
+        body { 
+            font-family: Helvetica, sans-serif; 
+            font-size: 13px; 
+            color: #333;
+        }
+        .header { 
+            text-align: center; 
+            border-bottom: 2px solid #0ea5e9; 
+            padding-bottom: 10px; 
+            margin-bottom: 30px; 
+        }
+        .title { 
+            font-size: 20px; 
+            font-weight: bold; 
+            color: #1f2937; 
+        }
+        .subtitle {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .info-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 30px; 
+        }
+        .info-table th { 
+            text-align: left; 
+            background-color: #f3f4f6; 
+            padding: 10px; 
+            border: 1px solid #e5e7eb; 
+            width: 25%;
+        }
+        .info-table td { 
+            padding: 10px; 
+            border: 1px solid #e5e7eb; 
+            width: 25%;
+        }
+        .diagnostic-box { 
+            border: 2px solid #f59e0b; 
+            padding: 20px; 
+            background-color: #fffbeb; 
+            border-radius: 5px;
+        }
+        .firma {
+            text-align: right;
+            margin-top: 40px;
+        }
+        .footer { 
+            text-align: center; 
+            margin-top: 50px; 
+            font-size: 10px; 
+            color: #9ca3af; 
+            border-top: 1px solid #e5e7eb;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="title">🔬 BIOGEST</div>
+        <div class="subtitle">INFORME DE ANATOMÍA PATOLÓGICA</div>
+        <div class="subtitle">{{ muestra.laboratorio.nombre }}</div>
+    </div>
+
+    <table class="info-table">
+        <tr>
+            <th>Correlativo:</th>
+            <td><strong>{{ muestra.numero_correlativo }}</strong></td>
+            <th>Fecha Recepción:</th>
+            <td>{{ muestra.fecha_recepcion|date:"d/m/Y" }}</td>
+        </tr>
+        <tr>
+            <th>Paciente:</th>
+            <td>{{ muestra.paciente_nombre }}</td>
+            <th>RUT:</th>
+            <td>{{ muestra.paciente_rut }}</td>
+        </tr>
+        <tr>
+            <th>Méd. Solicitante:</th>
+            <td>{{ muestra.medico_solicitante.nombre|default:"No especificado" }}</td>
+            <th>Tipo Examen:</th>
+            <td>{{ muestra.tipo_examen.nombre }}</td>
+        </tr>
+        <tr>
+            <th>Muestras:</th>
+            <td>{{ muestra.cantidad_muestras }} frascos</td>
+            <th>Fragmentos:</th>
+            <td>{{ muestra.numero_fragmentos }}</td>
+        </tr>
+    </table>
+
+    <h3 style="color: #1f2937;">Diagnóstico Médico Final</h3>
+    <div class="diagnostic-box">
+        {% if diagnostico %}
+            <p style="font-size: 14px; line-height: 1.5;">{{ diagnostico.comentario }}</p>
+            
+            <div class="firma">
+                <p>_____________________________________</p>
+                <p><strong>Dr/a. {{ diagnostico.user.username }}</strong><br>
+                Médico Patólogo<br>
+                <em>Fecha de emisión: {{ diagnostico.created_at|date:"d/m/Y H:i" }}</em></p>
+            </div>
+        {% else %}
+            <p style="color: #dc2626; text-align: center;"><strong>El diagnóstico final aún no ha sido emitido o redactado.</strong></p>
+        {% endif %}
+    </div>
+
+    <div class="footer">
+        Documento generado automáticamente por el Sistema de Trazabilidad Biogest.
+    </div>
+
+</body>
+</html>

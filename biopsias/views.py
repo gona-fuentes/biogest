@@ -1,9 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from .models import Examen, Comentario
+from django.db.models import Q
 from .forms import ExamenForm
 import uuid
-
+from django.core.paginator import Paginator
+#from django.http import HttpResponse
+#from django.template.loader import get_template
+#from xhtml2pdf import pisa
 
 
 
@@ -13,7 +17,8 @@ def es_laboratorio(user):
 def es_patologo(user):
     return user.groups.filter(name='Patólogo').exists() or user.is_superuser
 
-
+def es_personal_autorizado(user):
+    return user.groups.filter(name__in=['Laboratorio', 'Patólogo']).exists() or user.is_superuser
 
 
 @login_required
@@ -37,9 +42,20 @@ def redireccion_post_login(request):
 @login_required
 @user_passes_test(es_laboratorio, login_url='/inicio/')
 def dashboard_laboratorio(request):
-    # Traemos todas las muestras ordenadas de la más nueva a la más antigua
-    muestras = Examen.objects.all().order_by('-created_at')
-    return render(request, 'dashboard.html', {'muestras': muestras})
+    query = request.GET.get('q', '')
+    
+    if query:
+        # Si buscamos algo, filtramos
+        muestras = Examen.objects.filter(
+            Q(numero_correlativo__icontains=query) |
+            Q(paciente_rut__icontains=query) |
+            Q(paciente_nombre__icontains=query)
+        ).order_by('-created_at')
+    else:
+
+        muestras = Examen.objects.all().order_by('-created_at')
+        
+    return render(request, 'dashboard.html', {'muestras': muestras, 'query': query})
 
 @login_required
 @user_passes_test(es_laboratorio, login_url='/inicio/')
@@ -73,25 +89,30 @@ def dashboard_patologo(request):
     muestras_pendientes = Examen.objects.exclude(estado='Finalizado').order_by('-fecha_recepcion')
     return render(request, 'dashboard_patologo.html', {'muestras': muestras_pendientes})
 
-@login_required
-@user_passes_test(es_patologo, login_url='/inicio/')
-def detalle_muestra(request, examen_id):
-    # Buscamos la muestra específica
-    muestra = get_object_or_404(Examen, id=examen_id)
-    # Traemos todo el historial de trazabilidad de esta muestra
-    historial = muestra.comentarios.all().order_by('-created_at')
 
+
+
+
+
+@login_required
+@user_passes_test(es_personal_autorizado, login_url='/inicio/')
+def detalle_muestra(request, examen_id):
+    muestra = get_object_or_404(Examen, id=examen_id)
+    es_patologo_user = es_patologo(request.user)
+    
     if request.method == 'POST':
+        # Si un usuario de laboratorio intenta enviar el formulario, se bloquea la edición
+        if not es_patologo_user:
+            return redirect('detalle_muestra', examen_id=muestra.id)
+            
         nuevo_estado = request.POST.get('estado')
         nota_medica = request.POST.get('nota')
         
-        # 1. Actualizamos el estado de la muestra si cambió
         if nuevo_estado and nuevo_estado != muestra.estado:
             estado_anterior = muestra.estado
             muestra.estado = nuevo_estado
             muestra.save()
             
-            # MAGIA DE TRAZABILIDAD: Registramos el cambio de estado automáticamente
             Comentario.objects.create(
                 examen=muestra,
                 user=request.user,
@@ -99,7 +120,6 @@ def detalle_muestra(request, examen_id):
                 tipo='Cambio de estado'
             )
 
-        # 2. Guardamos la nota diagnóstica si el patólogo escribió una
         if nota_medica:
             Comentario.objects.create(
                 examen=muestra,
@@ -110,9 +130,42 @@ def detalle_muestra(request, examen_id):
             
         return redirect('detalle_muestra', examen_id=muestra.id)
 
+    historial_list = muestra.comentarios.all().order_by('-created_at')
+    paginator = Paginator(historial_list, 5)
+    
+    page_number = request.GET.get('page')
+    historial = paginator.get_page(page_number)
+
     return render(request, 'detalle_muestra.html', {
         'muestra': muestra,
-        'historial': historial
+        'historial': historial,
+        'es_patologo': es_patologo_user # Enviamos la bandera a la plantilla
     })
 
 
+
+
+
+@login_required
+@user_passes_test(es_personal_autorizado, login_url='/inicio/')
+def generar_informe_pdf(request, examen_id):
+    # Permite descargar el PDF tanto a patólogos como a laboratorio
+    muestra = get_object_or_404(Examen, id=examen_id)
+    diagnostico_final = muestra.comentarios.filter(tipo='Diagnóstico / Nota').order_by('-created_at').first()
+    
+    context = {
+        'muestra': muestra,
+        'diagnostico': diagnostico_final
+    }
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="Informe_Biopsia_{muestra.numero_correlativo}.pdf"'
+    
+    template = get_template('informe_pdf.html')
+    html = template.render(context)
+    
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    if pisa_status.err:
+        return HttpResponse('Tuvimos errores al generar el PDF')
+        
+    return response

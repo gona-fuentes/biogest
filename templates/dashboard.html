@@ -3,50 +3,68 @@
 {% block title %}Dashboard Laboratorio - Biogest{% endblock %}
 
 {% block content %}
-<div class="flex justify-between items-center mb-6">
+<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
     <h1 class="text-2xl font-bold text-gray-800">Muestras Ingresadas</h1>
-    <a href="{% url 'registrar_biopsia' %}" class="bg-clinica hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-200">
+    
+    <form method="GET" action="{% url 'dashboard' %}" class="flex w-full md:w-1/2">
+        <input type="text" name="q" value="{{ query }}" placeholder="Buscar por RUT, Nombre o Correlativo..." 
+               class="w-full px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-clinica">
+        <button type="submit" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-r-md border border-gray-300 border-l-0 transition">
+            🔍 Buscar
+        </button>
+        {% if query %}
+            <a href="{% url 'dashboard' %}" class="ml-2 text-red-500 hover:text-red-700 font-bold py-2 px-2 flex items-center">
+                ✖ Limpiar
+            </a>
+        {% endif %}
+    </form>
+
+    <a href="{% url 'registrar_biopsia' %}" class="bg-clinica hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-200 whitespace-nowrap shadow-sm">
         + Registrar Nueva Biopsia
     </a>
 </div>
 
-<div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-    <table class="min-w-full leading-normal">
+<div class="bg-white rounded-lg shadow-md overflow-x-auto border border-gray-200">
+    <table class="w-full text-left border-collapse">
         <thead>
-            <tr class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
-                <th class="py-3 px-6 text-left">Correlativo</th>
-                <th class="py-3 px-6 text-left">Paciente</th>
-                <th class="py-3 px-6 text-center">RUT</th>
-                <th class="py-3 px-6 text-center">Fecha Recepción</th>
-                <th class="py-3 px-6 text-center">Estado</th>
+            <tr class="bg-gray-100 text-gray-700 text-xs uppercase tracking-wider border-b border-gray-200">
+                <th class="py-3 px-4">Correlativo</th>
+                <th class="py-3 px-4">Paciente</th>
+                <th class="py-3 px-4">RUT</th>
+                <th class="py-3 px-4">Examen</th>
+                <th class="py-3 px-4">Estado</th>
+                <th class="py-3 px-4 text-center">Acciones</th>
             </tr>
         </thead>
-        <tbody class="text-gray-600 text-sm font-light">
+        <tbody class="divide-y divide-gray-200 text-sm">
             {% for muestra in muestras %}
-            <tr class="border-b border-gray-200 hover:bg-gray-50">
-                <td class="py-3 px-6 text-left font-bold text-clinica whitespace-nowrap">
-                    {{ muestra.numero_correlativo }}
-                </td>
-                <td class="py-3 px-6 text-left">
-                    {{ muestra.paciente_nombre }}
-                </td>
-                <td class="py-3 px-6 text-center">
-                    {{ muestra.paciente_rut }}
-                </td>
-                <td class="py-3 px-6 text-center">
-                    {{ muestra.fecha_recepcion|date:"d/m/Y" }}
-                </td>
-                <td class="py-3 px-6 text-center">
-                    <span class="bg-patologia text-white py-1 px-3 rounded-full text-xs font-bold">
+            <tr class="hover:bg-gray-50 transition">
+                <td class="py-3 px-4 font-bold text-clinica">{{ muestra.numero_correlativo }}</td>
+                <td class="py-3 px-4">{{ muestra.paciente_nombre }}</td>
+                <td class="py-3 px-4">{{ muestra.paciente_rut }}</td>
+                <td class="py-3 px-4">{{ muestra.tipo_examen.nombre }}</td>
+                <td class="py-3 px-4">
+                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-blue-200">
                         {{ muestra.estado }}
                     </span>
+                </td>
+                <td class="py-3 px-4 text-center">
+                    <div class="flex justify-center items-center gap-2">
+                        <a href="{% url 'detalle_muestra' muestra.id %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs font-semibold border border-gray-300 transition flex items-center gap-1">
+                            👁️ Detalle
+                        </a>
+                        
+                        {% if muestra.estado == 'Finalizado' %}
+                        <a href="{% url 'generar_pdf' muestra.id %}" target="_blank" class="bg-gray-800 hover:bg-gray-900 text-white px-3 py-1 rounded text-xs font-semibold transition flex items-center gap-1 shadow-sm">
+                            📄 PDF
+                        </a>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="5" class="py-6 text-center text-gray-500">
-                    No hay muestras registradas aún.
-                </td>
+                <td colspan="6" class="text-center py-6 text-gray-500">No hay muestras registradas aún.</td>
             </tr>
             {% endfor %}
         </tbody>
