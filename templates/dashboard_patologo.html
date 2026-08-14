@@ -1,40 +1,161 @@
 {% extends 'base.html' %}
 
-{% block title %}Bandeja Patólogo - Biogest{% endblock %}
+{% block title %}Bandeja de Patología - Biogest{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">Bandeja de Entrada - Patología 🔬</h1>
-    <p class="text-gray-500 text-sm">Muestras pendientes de evaluación y diagnóstico.</p>
-</div>
+<div class="space-y-10">
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    {% for muestra in muestras %}
-    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-patologia hover:shadow-lg transition">
-        <div class="flex justify-between items-start mb-4">
-            <div>
-                <span class="text-xs font-bold text-gray-500 uppercase">Correlativo</span>
-                <h3 class="text-lg font-bold text-clinica">{{ muestra.numero_correlativo }}</h3>
-            </div>
-            <span class="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-yellow-300">
-                {{ muestra.estado }}
+    <div>
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <span>🔬</span> Muestras Pendientes de Evaluación
+            </h1>
+            <span class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full border border-amber-200">
+                {{ muestras_pendientes|length }} pendiente(s)
             </span>
         </div>
-        <div class="mb-4 text-sm text-gray-600">
-            <p><strong>Paciente:</strong> {{ muestra.paciente_nombre }}</p>
-            <p><strong>Tipo:</strong> {{ muestra.tipo_examen.nombre }}</p>
-            <p><strong>Recepción:</strong> {{ muestra.fecha_recepcion|date:"d/m/Y" }}</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for muestra in muestras_pendientes %}
+            <div class="bg-white rounded-lg shadow border-t-4 border-patologia p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-xl font-black text-gray-800">{{ muestra.numero_correlativo }}</h3>
+                        <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded">{{ muestra.estado }}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-1"><strong>Paciente:</strong> {{ muestra.paciente_nombre }}</p>
+                    <p class="text-sm text-gray-600 mb-1"><strong>RUT:</strong> {{ muestra.paciente_rut }}</p>
+                    <p class="text-sm text-gray-600 mb-1"><strong>Examen:</strong> {{ muestra.tipo_examen.nombre }}</p>
+                    <p class="text-xs text-gray-400 mt-3">Ingresado: {{ muestra.fecha_recepcion|date:"d/m/Y" }}</p>
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-gray-100 flex gap-2">
+                    <button onclick="abrirModalChat('chat-{{ muestra.id }}')" class="flex-1 text-center px-3 py-2 rounded text-xs font-bold border transition {% if muestra.alerta_chat_patologo %}bg-red-500 text-white border-red-600 animate-pulse shadow-md{% else %}bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200{% endif %}">
+                        💬 {% if muestra.alerta_chat_patologo %}Nuevo Mensaje{% else %}Chat{% endif %}
+                    </button>
+                    <a href="{% url 'detalle_muestra' muestra.id %}" class="flex-1 text-center bg-patologia hover:bg-orange-600 text-white px-3 py-2 rounded text-xs font-bold transition shadow-md">
+                        ✏️ Evaluar
+                    </a>
+                </div>
+            </div>
+
+            <div id="chat-{{ muestra.id }}" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg shadow-xl max-w-lg w-full flex flex-col max-h-[80vh]">
+                    <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+                        <h3 class="font-bold text-gray-800">💬 Chat Interno: {{ muestra.numero_correlativo }}</h3>
+                        <div class="flex gap-2">
+                            {% if muestra.alerta_chat_patologo %}
+                            <form method="POST" action="{% url 'dashboard_patologo' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="marcar_leido">
+                                <input type="hidden" name="examen_id" value="{{ muestra.id }}">
+                                <button type="submit" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300">Marcar Leído</button>
+                            </form>
+                            {% endif %}
+                            <button onclick="cerrarModalChat('chat-{{ muestra.id }}')" class="text-gray-500 hover:text-red-500 font-bold">&times;</button>
+                        </div>
+                    </div>
+                    <div class="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50">
+                        {% for msg in muestra.comentarios.all %}
+                            {% if msg.tipo == 'Mensaje / Consulta' %}
+                                <div class="bg-white p-3 rounded shadow-sm border text-sm {% if msg.user == request.user %}border-orange-200 ml-8{% else %}border-gray-200 mr-8{% endif %}">
+                                    <span class="font-bold text-xs text-gray-500 block mb-1">
+                                        {{ msg.user.username }} - {{ msg.created_at|date:"d/m H:i" }}
+                                    </span>
+                                    <p class="text-gray-800">{{ msg.comentario }}</p>
+                                </div>
+                            {% endif %}
+                        {% empty %}
+                            <p class="text-center text-xs text-gray-400 italic">No hay mensajes.</p>
+                        {% endfor %}
+                    </div>
+                    <div class="p-4 border-t bg-white rounded-b-lg">
+                        <form method="POST" action="{% url 'dashboard_patologo' %}" class="flex gap-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="enviar_chat">
+                            <input type="hidden" name="examen_id" value="{{ muestra.id }}">
+                            <input type="text" name="mensaje" required placeholder="Responder al laboratorio..." class="w-full text-sm px-3 py-2 border rounded focus:ring-patologia">
+                            <button type="submit" class="bg-patologia text-white font-bold px-4 py-2 rounded text-sm">Enviar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-3 bg-white p-8 rounded-lg text-center text-gray-500 border border-gray-200">
+                🎉 No hay muestras pendientes en la bandeja de evaluación.
+            </div>
+            {% endfor %}
         </div>
-        <a href="{% url 'detalle_muestra' muestra.id %}" class="block text-center w-full bg-gray-50 hover:bg-gray-100 text-clinica font-semibold py-2 px-4 border border-gray-200 rounded transition">
-            Evaluar Muestra
-        </a>
     </div>
-    {% empty %}
-    <div class="col-span-3 text-center py-10 bg-white rounded-lg border border-dashed border-gray-300 text-gray-500">
-        No hay muestras pendientes en la bandeja. ¡Buen trabajo!
+
+    <div class="pt-6 border-t border-gray-200">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-800">📂 Histórico General de Exámenes</h2>
+                <p class="text-xs text-gray-500">Busca muestras finalizadas o en proceso por RUT, Nombre o Correlativo.</p>
+            </div>
+
+            <form method="GET" action="{% url 'dashboard_patologo' %}" class="flex w-full md:w-1/2">
+                <input type="text" name="q_historial" value="{{ query_historial }}" placeholder="Buscar examen antiguo..." 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-patologia text-sm">
+                <button type="submit" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-r-md border border-gray-300 border-l-0 transition text-sm font-semibold">
+                    🔍 Buscar
+                </button>
+                {% if query_historial %}
+                    <a href="{% url 'dashboard_patologo' %}" class="ml-2 text-red-500 hover:text-red-700 font-bold py-2 px-2 flex items-center text-sm">
+                        ✖ Limpiar
+                    </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md overflow-x-auto border border-gray-200">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead class="bg-gray-100 text-gray-700 text-xs uppercase tracking-wider border-b">
+                    <tr>
+                        <th class="py-3 px-4">Correlativo</th>
+                        <th class="py-3 px-4">Paciente</th>
+                        <th class="py-3 px-4">RUT</th>
+                        <th class="py-3 px-4">Examen</th>
+                        <th class="py-3 px-4">Estado</th>
+                        <th class="py-3 px-4 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for examen in historial_examenes %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-3 px-4 font-bold text-patologia">{{ examen.numero_correlativo }}</td>
+                        <td class="py-3 px-4">{{ examen.paciente_nombre }}</td>
+                        <td class="py-3 px-4">{{ examen.paciente_rut }}</td>
+                        <td class="py-3 px-4">{{ examen.tipo_examen.nombre }}</td>
+                        <td class="py-3 px-4">
+                            <span class="{% if examen.estado == 'Finalizado' %}bg-green-100 text-green-800 border-green-200{% else %}bg-amber-100 text-amber-800 border-amber-200{% endif %} text-xs font-semibold px-2.5 py-0.5 rounded border">
+                                {{ examen.estado }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="flex justify-center items-center gap-1.5">
+                                <a href="{% url 'detalle_muestra' examen.id %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded text-xs font-semibold border transition">👁️ Ver Detalle</a>
+                                {% if examen.estado == 'Finalizado' %}
+                                <a href="{% url 'generar_pdf' examen.id %}" target="_blank" class="bg-gray-800 hover:bg-gray-900 text-white px-2.5 py-1 rounded text-xs font-semibold transition shadow-sm">📄 PDF</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-6 text-gray-500">No se encontraron exámenes en el historial.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-    {% endfor %}
+
 </div>
 
-
+<script>
+    function abrirModalChat(id) { document.getElementById(id).classList.replace('hidden', 'flex'); }
+    function cerrarModalChat(id) { document.getElementById(id).classList.replace('flex', 'hidden'); }
+</script>
 {% endblock %}

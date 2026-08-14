@@ -33,7 +33,10 @@ class Examen(models.Model):
     
     tincion_rutina = models.CharField(max_length=255, blank=True, null=True)
     tecnicas_especiales = models.TextField(blank=True, null=True)
-    
+    # Banderas para notificaciones de Chat en Dashboards
+    alerta_chat_patologo = models.BooleanField(default=False)
+    alerta_chat_laboratorio = models.BooleanField(default=False)
+
     # Relaciones principales (Llaves Foráneas)
     tipo_examen = models.ForeignKey(TipoExamen, on_delete=models.PROTECT)
     laboratorio = models.ForeignKey(Laboratorio, on_delete=models.PROTECT)
