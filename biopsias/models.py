@@ -11,9 +11,16 @@ class Medico(models.Model):
         return self.nombre
 
 class TipoExamen(models.Model):
-    nombre = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    nombre = models.CharField(max_length=150, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+    # NUEVO CAMPO: Guarda la plantilla dinámica para este tipo de biopsia
+    plantilla_preinforme = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Plantilla de Pre-Informe",
+        help_text="Escriba la estructura predeterminada que verá el patólogo al redactar este examen."
+    )
+    activo = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nombre

@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import Examen, Comentario
+from .models import Examen, Comentario, TipoExamen
 from django.db.models import Q
 from .forms import ExamenForm
 import uuid
@@ -136,6 +136,9 @@ def dashboard_patologo(request):
         'query_historial': query_historial,
     })
 # 3. Detalle Muestra (Responde mensaje y quita la alerta pendiente)
+
+
+
 @login_required
 @user_passes_test(es_personal_autorizado, login_url='/inicio/')
 def detalle_muestra(request, examen_id):
@@ -173,16 +176,22 @@ def detalle_muestra(request, examen_id):
 
 
 
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, redirect, render
+
 @login_required
 @user_passes_test(es_personal_autorizado, login_url='/inicio/')
 def detalle_muestra(request, examen_id):
     muestra = get_object_or_404(Examen, id=examen_id)
     es_patologo_user = es_patologo(request.user)
     
+    # Procesamiento del método POST (Acciones: enviar_chat, actualizar_diagnostico)
     if request.method == 'POST':
         action = request.POST.get('action')
         
-        # 💬 ACCIÓN 1: Enviar mensaje por el Chat Interno (Clínico y Patólogo)
+        # 💬 ACCIÓN 1: Enviar mensaje por el Chat Interno
         if action == 'enviar_chat':
             mensaje = request.POST.get('mensaje', '').strip()
             if mensaje:
@@ -193,9 +202,9 @@ def detalle_muestra(request, examen_id):
                     tipo='Mensaje / Consulta'
                 )
             return redirect('detalle_muestra', examen_id=muestra.id)
-
+            
         # 📝 ACCIÓN 2: Diagnóstico y Cambio de Estado (Exclusivo Patólogo)
-        if es_patologo_user and action == 'actualizar_diagnostico':
+        elif es_patologo_user and action == 'actualizar_diagnostico':
             nuevo_estado = request.POST.get('estado')
             nota_medica = request.POST.get('nota')
             
@@ -221,19 +230,21 @@ def detalle_muestra(request, examen_id):
                 
             return redirect('detalle_muestra', examen_id=muestra.id)
 
-    # Cargar trazabilidad y mensajes paginados de a 5
+    # Paginación del historial/comentarios para solicitudes GET
     historial_list = muestra.comentarios.all().order_by('-created_at')
     paginator = Paginator(historial_list, 5)
-    
     page_number = request.GET.get('page')
     historial = paginator.get_page(page_number)
+
+    # Cargar todos los tipos de examen activos desde la base de datos
+    tipos_examen_disponibles = TipoExamen.objects.filter(activo=True)
 
     return render(request, 'detalle_muestra.html', {
         'muestra': muestra,
         'historial': historial,
-        'es_patologo': es_patologo_user
+        'es_patologo': es_patologo_user,
+        'tipos_examen_disponibles': tipos_examen_disponibles,
     })
-
 
 
 
