@@ -10,7 +10,7 @@
             <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <i class="fa-solid fa-flask text-clinica"></i> Panel de Recepción y Proceso
             </h1>
-            <p class="text-sm text-gray-500">Gestión de muestras ingresadas y trazabilidad activa de frascos.</p>
+            <p class="text-sm text-gray-500">Gestión de muestras ingresadas y trazabilidad activa.</p>
         </div>
         <a href="{% url 'registrar_biopsia' %}" class="bg-patologia hover:bg-emerald-600 text-white font-bold py-2.5 px-6 rounded-md transition shadow flex items-center gap-2">
             <i class="fa-solid fa-plus"></i> Registrar Nueva Biopsia
@@ -51,7 +51,7 @@
                     <tr class="hover:bg-emerald-50 transition">
                         <td class="py-3 px-4 font-bold text-gray-800">{{ muestra.numero_correlativo }}</td>
                         <td class="py-3 px-4 font-medium">{{ muestra.paciente.nombre_completo }}</td>
-                        <td class="py-3 px-4 text-gray-600 rut-paciente">{{ muestra.paciente.rut }}</td>
+                        <td class="py-3 px-4 text-gray-600">{{ muestra.paciente.rut }}</td>
                         <td class="py-3 px-4 text-gray-600">{{ muestra.tipo_examen.nombre }}</td>
                         <td class="py-3 px-4">
                             {% if muestra.resultado_critico %}
@@ -64,7 +64,9 @@
                         </td>
                         <td class="py-3 px-4 text-center">
                             {% if muestra.patologo %}
-                                <span class="text-xs font-bold text-clinica"><i class="fa-solid fa-user-doctor mr-1"></i> {{ muestra.patologo.username }}</span>
+                                <span class="text-xs font-bold text-clinica" title="{{ muestra.patologo.username }}">
+                                    <i class="fa-solid fa-user-doctor mr-1"></i> Dr(a). {{ muestra.patologo.get_full_name|default:muestra.patologo.username }}
+                                </span>
                             {% else %}
                                 <span class="text-xs text-gray-400 italic">No asignado</span>
                             {% endif %}
@@ -76,8 +78,7 @@
                                     <i class="fa-regular fa-comments text-sm"></i>
                                 </button>
                                 
-                                <button data-url="{% url 'etiqueta_frasco' muestra.id %}" 
-                                        onclick="window.open(this.dataset.url, 'EtiquetaQR', 'width=480,height=420')" 
+                                <button data-url="{% url 'etiqueta_frasco' muestra.id %}" onclick="window.open(this.dataset.url, 'EtiquetaQR', 'width=480,height=420')" 
                                         class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1.5 rounded text-xs font-bold transition shadow-sm" title="Imprimir Etiqueta de Frasco">
                                     <i class="fa-solid fa-qrcode text-sm"></i>
                                 </button>
@@ -106,8 +107,7 @@
                                     <button onclick="cerrarModalChat('{{ muestra.id }}')" class="text-gray-500 hover:text-red-500 font-bold ml-2"><i class="fa-solid fa-xmark text-lg"></i></button>
                                 </div>
                             </div>
-                            <div id="chat-box-{{ muestra.id }}" class="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50">
-                                </div>
+                            <div id="chat-box-{{ muestra.id }}" class="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50"></div>
                             {% if muestra.estado != 'Finalizado' %}
                             <div class="p-4 border-t bg-white rounded-b-lg">
                                 <form onsubmit="enviarMensaje(event, '{{ muestra.id }}')" class="flex gap-2">
@@ -136,7 +136,6 @@
 <script>
     let chatIntervals = {};
 
-    // 1. Polling Automático de Alertas
     setInterval(() => {
         fetch("{% url 'api_check_pendientes' %}")
         .then(res => res.json())
@@ -157,7 +156,6 @@
         .catch(err => console.error("Error en alertas:", err));
     }, 3000);
 
-    // 2. Control de Modal de Chat
     function abrirModalChat(id) { 
         document.getElementById('chat-modal-' + id).classList.replace('hidden', 'flex'); 
         cargarMensajes(id);
@@ -170,7 +168,6 @@
         if(chatIntervals[id]) clearInterval(chatIntervals[id]);
     }
 
-    // 3. Marcar como leído dinámicamente
     function marcarLeido(id) {
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
         const formData = new FormData();
@@ -185,7 +182,6 @@
         });
     }
 
-    // 4. Cargar Chat dinámicamente
     function cargarMensajes(id) {
         const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
         fetch(url)
@@ -213,7 +209,6 @@
         });
     }
 
-    // 5. Enviar Mensaje dinámicamente
     function enviarMensaje(event, id) {
         event.preventDefault();
         const input = document.getElementById('input-msg-' + id);

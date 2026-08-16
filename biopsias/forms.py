@@ -32,6 +32,27 @@ class ExamenForm(forms.ModelForm):
             'numero_fragmentos': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
         }
 
+    # NUEVO: Lógica de purificación anti-espagueti para el RUT
+    def clean_rut(self):
+        rut = self.cleaned_data.get('rut', '')
+        
+        # 1. Quitamos todo lo que no sea número o letra 'K', y lo pasamos a mayúscula
+        rut_limpio = ''.join(c for c in rut if c.isalnum()).upper()
+        
+        # 2. Si tiene longitud válida, lo formateamos matemáticamente a XX.XXX.XXX-X
+        if len(rut_limpio) > 1:
+            cuerpo = rut_limpio[:-1]
+            dv = rut_limpio[-1]
+            
+            try:
+                # El truco del formato {:,} pone comas cada 3 números, luego las cambiamos por puntos
+                cuerpo_formateado = "{:,}".format(int(cuerpo)).replace(',', '.')
+                return f"{cuerpo_formateado}-{dv}"
+            except ValueError:
+                pass # Si el cuerpo no es un número válido, lo deja pasar para que el modelo lo rechace
+                
+        return rut
+
 
 class PlantillaPatologoForm(forms.ModelForm):
     class Meta:

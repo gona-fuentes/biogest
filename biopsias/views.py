@@ -171,21 +171,25 @@ def asignar_patologo(request, examen_id):
 
 # --- DETALLE Y EVALUACIÓN ---
 @login_required
-@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def detalle_muestra(request, examen_id):
     muestra = get_object_or_404(Examen, id=examen_id)
-    es_patologo_user = es_patologo(request.user)
+    comentarios = muestra.comentarios.all().order_by('-created_at')
+    
+    es_patologo_user = request.user.groups.filter(name='Patólogo').exists()
     
     if request.method == 'POST':
         action = request.POST.get('action')
-        
-        if action == 'enviar_chat':
-            mensaje = request.POST.get('mensaje', '').strip()
-            if mensaje:
+
+        if action == 'agregar_comentario':
+            texto = request.POST.get('comentario')
+            if texto:
                 Comentario.objects.create(
-                    examen=muestra, user=request.user,
-                    comentario=mensaje, tipo='Mensaje / Consulta'
+                    examen=muestra,
+                    user=request.user,
+                    comentario=texto,
+                    tipo='Mensaje / Consulta'
                 )
+                messages.success(request, "Comentario agregado.")
             return redirect('detalle_muestra', examen_id=muestra.id)
             
         elif es_patologo_user and action == 'actualizar_diagnostico':
@@ -196,13 +200,26 @@ def detalle_muestra(request, examen_id):
             nuevo_estado = request.POST.get('estado')
             nota_medica = request.POST.get('nota')
             es_critico = request.POST.get('resultado_critico') == 'True'
-            
+            pin_ingresado = request.POST.get('pin_firma', '')
+
+            # VALIDACIÓN DE PIN (Solo si intenta Finalizar)
+            if nuevo_estado == 'Finalizado' and muestra.estado != 'Finalizado':
+                if not request.user.pin_firma:
+                    messages.error(request, "❌ Debe configurar su PIN de Firma Digital en 'Mi Perfil' antes de emitir un informe.")
+                    return redirect('detalle_muestra', examen_id=muestra.id)
+                elif pin_ingresado != request.user.pin_firma:
+                    messages.error(request, "❌ PIN de Firma Incorrecto. El diagnóstico no fue cerrado.")
+                    return redirect('detalle_muestra', examen_id=muestra.id)
+
             if nuevo_estado and nuevo_estado != muestra.estado:
                 estado_anterior = muestra.estado
                 muestra.estado = nuevo_estado
+                
+                # Se guarda EXACTAMENTE la fecha y hora de la firma
                 if nuevo_estado == 'Finalizado':
                     muestra.informe_cerrado = True
                     muestra.fecha_entrega = datetime.now().date()
+                    
                 muestra.save()
                 Comentario.objects.create(
                     examen=muestra, user=request.user,
@@ -221,33 +238,14 @@ def detalle_muestra(request, examen_id):
                     examen=muestra, user=request.user,
                     comentario=nota_medica, tipo='Diagnóstico / Nota'
                 )
-            messages.success(request, "Informe guardado con éxito.")
+                
+            messages.success(request, "Informe y diagnóstico guardados con éxito.")
             return redirect('detalle_muestra', examen_id=muestra.id)
-            
-        elif request.user.is_superuser and action == 'reabrir_informe':
-            motivo = request.POST.get('motivo_apertura')
-            if motivo:
-                muestra.informe_cerrado = False
-                muestra.estado = 'En Evaluación'
-                muestra.save()
-                Comentario.objects.create(
-                    examen=muestra, user=request.user,
-                    comentario=f"Reapertura de informe cerrado. Motivo: {motivo}",
-                    tipo='Apertura Admin'
-                )
-                messages.success(request, "Informe desbloqueado.")
-            return redirect('detalle_muestra', examen_id=muestra.id)
-
-    historial_list = muestra.comentarios.all().order_by('-created_at')
-    paginator = Paginator(historial_list, 5)
-    page_number = request.GET.get('page')
-    historial = paginator.get_page(page_number)
-    tipos_examen_disponibles = TipoExamen.objects.filter(activo=True)
 
     return render(request, 'biopsias/detalle_muestra.html', {
-        'muestra': muestra, 'historial': historial,
-        'es_patologo': es_patologo_user,
-        'tipos_examen_disponibles': tipos_examen_disponibles,
+        'muestra': muestra,
+        'comentarios': comentarios,
+        'es_patologo': es_patologo_user
     })
 
 
@@ -404,29 +402,46 @@ def api_check_pendientes(request):
 @login_required
 def api_chat_examen(request, examen_id):
     muestra = get_object_or_404(Examen, id=examen_id)
+    
     if request.method == 'POST':
-        if request.POST.get('action') == 'marcar_leido':
-            if es_patologo(request.user): muestra.alerta_chat_patologo = False
-            else: muestra.alerta_chat_laboratorio = False
+        action = request.POST.get('action')
+        if action == 'marcar_leido':
+            if request.user.groups.filter(name='Laboratorio').exists():
+                muestra.alerta_chat_laboratorio = False
+            else:
+                muestra.alerta_chat_patologo = False
+            muestra.save()
+            return JsonResponse({'status': 'ok'})
+            
+        mensaje_texto = request.POST.get('mensaje')
+        if mensaje_texto:
+            Comentario.objects.create(
+                examen=muestra,
+                user=request.user,
+                comentario=mensaje_texto,
+                tipo='Chat Interno'
+            )
+            # Si escribe el patólogo, alerta al lab (y viceversa)
+            if request.user.groups.filter(name='Patólogo').exists():
+                muestra.alerta_chat_laboratorio = True
+            else:
+                muestra.alerta_chat_patologo = True
             muestra.save()
             return JsonResponse({'status': 'ok'})
 
-        mensaje = request.POST.get('mensaje', '').strip()
-        if mensaje:
-            Comentario.objects.create(examen=muestra, user=request.user, comentario=mensaje, tipo='Mensaje / Consulta')
-            if es_patologo(request.user):
-                muestra.alerta_chat_laboratorio = True
-                muestra.alerta_chat_patologo = False
-            else:
-                muestra.alerta_chat_patologo = True
-                muestra.alerta_chat_laboratorio = False
-            muestra.save()
-        return JsonResponse({'status': 'ok'})
-
-    mensajes = muestra.comentarios.filter(tipo='Mensaje / Consulta').order_by('created_at')
-    data = [{'usuario': msg.user.username, 'es_mio': msg.user == request.user, 'texto': msg.comentario, 'fecha': msg.created_at.strftime("%d/%m %H:%M")} for msg in mensajes]
-    alerta_actual = muestra.alerta_chat_patologo if es_patologo(request.user) else muestra.alerta_chat_laboratorio
-    return JsonResponse({'mensajes': data, 'alerta_chat': alerta_actual})
+    # GET: Cargar mensajes (Muestra el nombre real del usuario)
+    mensajes_db = muestra.comentarios.filter(tipo='Chat Interno').order_by('created_at')
+    data = []
+    for msg in mensajes_db:
+        data.append({
+            'id': msg.id,
+            'texto': msg.comentario,
+            'usuario': msg.user.get_full_name() or msg.user.username, # <--- Nombre real
+            'fecha': msg.created_at.strftime('%d/%m %H:%M'),
+            'es_mio': msg.user == request.user
+        })
+        
+    return JsonResponse({'mensajes': data})
 
 @login_required
 def api_obtener_plantillas(request, tipo_examen_id):
@@ -440,3 +455,35 @@ def etiqueta_frasco(request, examen_id):
     """ Genera la vista HTML pura de la etiqueta para impresión térmica """
     muestra = get_object_or_404(Examen, id=examen_id)
     return render(request, 'biopsias/etiqueta_qr.html', {'muestra': muestra})
+
+
+
+@login_required
+@user_passes_test(es_patologo, login_url='/usuarios/login/')
+def tomar_muestra(request):
+    """ Muestra las biopsias recién ingresadas para que el patólogo se las asigne """
+    # Buscar solo muestras en estado 'Ingresada'
+    muestras_disponibles = Examen.objects.filter(estado='Ingresada').order_by('fecha_recepcion', 'id')
+    
+    if request.method == 'POST':
+        muestra_id = request.POST.get('muestra_id')
+        muestra = get_object_or_404(Examen, id=muestra_id)
+        
+        # Validación de seguridad: evitar doble asignación
+        if muestra.estado == 'Ingresada':
+            muestra.patologo = request.user
+            muestra.estado = 'En Evaluación'
+            muestra.save()
+            
+            Comentario.objects.create(
+                examen=muestra,
+                user=request.user,
+                comentario="El patólogo ha tomado el caso para evaluación.",
+                tipo='Asignación Médica'
+            )
+            messages.success(request, f"¡Muestra {muestra.numero_correlativo} asignada a su bandeja!")
+            return redirect('dashboard_patologo')
+        else:
+            messages.error(request, "Esta muestra ya fue tomada por otro patólogo.")
+            
+    return render(request, 'biopsias/tomar_muestra.html', {'muestras': muestras_disponibles})
