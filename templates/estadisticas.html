@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block title %}Métricas y Reportes - Biogest{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <i class="fa-solid fa-chart-line text-clinica"></i> Indicadores y Estadísticas de Calidad
+            </h1>
+            <p class="text-sm text-gray-500">Métricas en tiempo real para auditorías y MINSAL.</p>
+        </div>
+        <a href="{% url 'exportar_excel' %}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-5 rounded-md transition shadow flex items-center gap-2">
+            <i class="fa-solid fa-file-excel text-lg"></i> Exportar Base Completa a Excel
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-clinica">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Biopsias</span>
+            <span class="text-3xl font-black text-gray-800">{{ total_biopsias }}</span>
+        </div>
+
+        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-patologia">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">TAT Promedio (Entrega)</span>
+            <span class="text-3xl font-black text-emerald-600">{{ tat_promedio_dias }} <span class="text-xs font-semibold text-gray-500">días</span></span>
+        </div>
+
+        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-critico">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Hallazgos Críticos</span>
+            <span class="text-3xl font-black text-red-600">{{ total_criticos }}</span>
+        </div>
+
+        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-amber-500">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">En Proceso / Pendientes</span>
+            <span class="text-3xl font-black text-amber-600">{{ total_pendientes }}</span>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-user-doctor text-clinica"></i> Biopsias por Patólogo Responsable
+            </h3>
+            <div class="relative h-64">
+                <canvas id="chartPatologos"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-critico"></i> Proporción de Casos Críticos vs Normales
+            </h3>
+            <div class="relative h-64 flex justify-center">
+                <canvas id="chartCriticos"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 lg:col-span-2">
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-chart-area text-clinica"></i> Tendencia y Evolución Mensual de Biopsias
+            </h3>
+            <div class="relative h-72">
+                <canvas id="chartMeses"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 lg:col-span-2">
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-vial text-patologia"></i> Muestras Procesadas según Tipo de Examen
+            </h3>
+            <div class="relative h-72">
+                <canvas id="chartTipos"></canvas>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Chart Patólogos
+        new Chart(document.getElementById('chartPatologos'), {
+            type: 'bar',
+            data: {
+                labels: {{ labels_patologos|safe }},
+                datasets: [{
+                    label: 'Biopsias Asignadas',
+                    data: {{ data_patologos|safe }},
+                    backgroundColor: '#064e3b',
+                    borderRadius: 6
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // 2. Chart Críticos (Doughnut)
+        new Chart(document.getElementById('chartCriticos'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Normales / De Rutina (%)', 'Críticos / Urgentes (%)'],
+                datasets: [{
+                    data: [{{ porcentaje_normales }}, {{ porcentaje_criticos }}],
+                    backgroundColor: ['#10b981', '#ef4444']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // 3. Chart Meses (Línea Temporal)
+        new Chart(document.getElementById('chartMeses'), {
+            type: 'line',
+            data: {
+                labels: {{ labels_meses|safe }},
+                datasets: [{
+                    label: 'Biopsias Ingresadas por Mes',
+                    data: {{ data_meses|safe }},
+                    borderColor: '#064e3b',
+                    backgroundColor: 'rgba(6, 78, 59, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#10b981'
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+
+        // 4. Chart Tipos Examen
+        new Chart(document.getElementById('chartTipos'), {
+            type: 'bar',
+            data: {
+                labels: {{ labels_tipos|safe }},
+                datasets: [{
+                    label: 'Cantidad de Muestras',
+                    data: {{ data_tipos|safe }},
+                    backgroundColor: '#10b981',
+                    borderRadius: 6
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    });
+</script>
+{% endblock %}

@@ -3,55 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Biogest - Trazabilidad{% endblock %}</title>
+    <title>{% block title %}Biogest - Trazabilidad de Biopsias{% endblock %}</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <script src="https://cdn.tailwindcss.com"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        clinica: '#064e3b', // Verde oscuro intenso
-                        patologia: '#10b981', // Verde esmeralda (acciones y alertas)
-                        critico: '#ef4444', // Rojo para alertas críticas
+                        clinica: '#064e3b',    // Verde oscuro esmeralda
+                        patologia: '#10b981',  // Verde esmeralda brillante
+                        darkbg: '#111827',     // Gris casi negro
+                        critico: '#ef4444',    // Rojo alerta
                     }
                 }
             }
         }
     </script>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen flex flex-col">
+<body class="bg-gray-100 text-gray-800 font-sans antialiased min-h-screen flex">
 
-    <nav class="bg-clinica text-white shadow-md bg-gradient-to-r from-clinica to-gray-900">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-            
-            <a href="{% url 'inicio' %}" class="text-xl font-bold tracking-wider hover:text-gray-200 transition flex items-center gap-2">
-                <i class="fa-solid fa-microscope"></i> BIOGEST
-            </a>
-            
-            <div>
-                {% if user.is_authenticated %}
-                    <span class="mr-4 text-sm"><i class="fa-solid fa-user-md mr-1"></i>Hola, <strong>{{ user.username }}</strong></span>
-                    <form action="{% url 'logout' %}" method="post" class="inline">
-                        {% csrf_token %}
-                        <button type="submit" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm transition shadow">Salir</button>
-                    </form>
-                {% endif %}
+    <aside id="sidebar" class="bg-gradient-to-b from-clinica via-gray-900 to-darkbg text-white w-64 min-h-screen flex flex-col justify-between transition-all duration-300 z-40 fixed lg:relative -translate-x-full lg:translate-x-0 shadow-xl">
+        <div>
+            <div class="p-5 border-b border-emerald-900/50 flex items-center justify-between">
+                <a href="{% url 'inicio' %}" class="flex items-center gap-3 text-xl font-bold tracking-wider hover:text-emerald-300 transition">
+                    <div class="bg-patologia text-white p-2 rounded-lg shadow-md">
+                        <i class="fa-solid fa-microscope text-lg"></i>
+                    </div>
+                    <span>BIOGEST</span>
+                </a>
+                <button onclick="toggleSidebar()" class="lg:hidden text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
             </div>
+
+            <nav class="p-4 space-y-1.5 text-sm font-medium">
+                {% if user.is_authenticated %}
+                    {% with group_names=user.groups.all|join:"," %}
+                    
+                    <p class="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider px-3 mb-2">Módulos Clínicos</p>
+                    
+                    {% if user.is_superuser or "Laboratorio" in group_names %}
+                    <a href="{% url 'dashboard' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
+                        <i class="fa-solid fa-flask w-5 text-patologia"></i> Panel Laboratorio
+                    </a>
+                    <a href="{% url 'nueva_biopsia' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
+                        <i class="fa-solid fa-file-circle-plus w-5 text-patologia"></i> Nueva Biopsia
+                    </a>
+                    {% endif %}
+
+                    {% if user.is_superuser or "Patólogo" in group_names %}
+                    <a href="{% url 'dashboard_patologo' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
+                        <i class="fa-solid fa-user-md w-5 text-patologia"></i> Bandeja Patología
+                    </a>
+                    {% endif %}
+
+                    <a href="{% url 'lista_pacientes' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
+                        <i class="fa-solid fa-id-card-clip w-5 text-patologia"></i> Fichas Clínicas
+                    </a>
+
+                    <p class="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider px-3 pt-4 mb-2">Gestión & Reportes</p>
+
+                    <a href="{% url 'dashboard_estadisticas' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
+                        <i class="fa-solid fa-chart-pie w-5 text-patologia"></i> Estadísticas & KPI
+                    </a>
+
+                    {% if user.is_superuser %}
+                    <a href="/admin/" target="_blank" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
+                        <i class="fa-solid fa-sliders w-5 text-patologia"></i> Administrador
+                    </a>
+                    {% endif %}
+
+                    {% endwith %}
+                {% else %}
+                    <div class="p-6 text-center text-xs text-emerald-300/60 space-y-2">
+                        <i class="fa-solid fa-user-lock text-3xl block text-emerald-500/50"></i>
+                        <p>Ingrese sus credenciales para acceder a los módulos de trazabilidad.</p>
+                    </div>
+                {% endif %}
+            </nav>
         </div>
-    </nav>
 
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6">
-        {% block content %}
-        {% endblock %}
-    </main>
+        <div class="p-4 border-t border-emerald-900/50 bg-black/20">
+            {% if user.is_authenticated %}
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-full bg-emerald-800 flex items-center justify-center font-bold text-xs uppercase border border-emerald-600">
+                        {{ user.username|slice:":2" }}
+                    </div>
+                    <div class="truncate">
+                        <p class="text-xs font-bold text-white truncate">{{ user.username }}</p>
+                        <p class="text-[10px] text-emerald-400 truncate">
+                            {% if user.is_superuser %}Admin{% else %}Usuario Activo{% endif %}
+                        </p>
+                    </div>
+                </div>
+                <form action="{% url 'logout' %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" title="Cerrar Sesión" class="text-gray-400 hover:text-red-400 p-2 rounded transition">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </aside>
 
-    <footer class="bg-white border-t border-gray-200 py-4 text-center text-xs text-gray-500">
-        &copy; 2026 Biogest - Sistema de Trazabilidad Patológica
-    </footer>
+    <div class="flex-1 flex flex-col min-w-0">
+        <header class="lg:hidden bg-clinica text-white p-4 flex justify-between items-center shadow-md">
+            <button onclick="toggleSidebar()" class="text-xl">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <span class="font-bold tracking-wider">BIOGEST</span>
+            <div></div>
+        </header>
 
+        <main class="flex-grow p-4 lg:p-8 overflow-y-auto">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+    </script>
 </body>
 </html>

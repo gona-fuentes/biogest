@@ -1,11 +1,18 @@
+import csv
+from datetime import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import JsonResponse, HttpResponse
+from django.db.models import Q, Count, Avg, F, ExpressionWrapper, DurationField
+from django.contrib.auth import get_user_model
+from django.db.models import Count
 from django.core.paginator import Paginator
-from django.http import JsonResponse
-from django.db.models import Q
 import uuid
+from django.db.models.functions import TruncMonth
 
-from .models import Examen, Comentario, TipoExamen, Paciente
+User = get_user_model()
+
+from .models import Examen, Comentario, TipoExamen, Paciente, Medico
 from .forms import ExamenForm
 
 
@@ -379,3 +386,189 @@ def api_chat_examen(request, examen_id):
     
     alerta_actual = muestra.alerta_chat_patologo if es_patologo(request.user) else muestra.alerta_chat_laboratorio
     return JsonResponse({'mensajes': data, 'alerta_chat': alerta_actual})
+
+
+
+@login_required
+def historial_filtrado(request):
+    """ Muestra el historial completo con filtros avanzados de fecha, estado y tipo """
+    examenes = Examen.objects.all().order_by('-fecha_recepcion')
+    
+    # Parámetros GET
+    q = request.GET.get('q', '').strip()
+    fecha_inicio = request.GET.get('fecha_inicio', '')
+    fecha_fin = request.GET.get('fecha_fin', '')
+    estado = request.GET.get('estado', '')
+    tipo_examen_id = request.GET.get('tipo_examen', '')
+
+    if q:
+        examenes = examenes.filter(
+            Q(paciente__rut__icontains=q) |
+            Q(paciente__nombre_completo__icontains=q) |
+            Q(numero_correlativo__icontains=q)
+        )
+    if fecha_inicio:
+        examenes = examenes.filter(fecha_recepcion__gte=fecha_inicio)
+    if fecha_fin:
+        examenes = examenes.filter(fecha_recepcion__lte=fecha_fin)
+    if estado:
+        examenes = examenes.filter(estado=estado)
+    if tipo_examen_id:
+        examenes = examenes.filter(tipo_examen_id=tipo_examen_id)
+
+    tipos_examen = TipoExamen.objects.filter(activo=True)
+
+    return render(request, 'historial_filtrado.html', {
+        'examenes': examenes,
+        'tipos_examen': tipos_examen,
+        'q': q,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'estado_sel': estado,
+        'tipo_sel': tipo_examen_id,
+    })
+
+
+# --- MÓDULO DE ESTADÍSTICAS Y KPI ---
+
+@login_required
+def dashboard_estadisticas(request):
+    """ Genera métricas para Chart.js: TAT medio, biopsias por mes, % críticos, biopsias por patólogo """
+    total_biopsias = Examen.objects.count()
+    total_finalizadas = Examen.objects.filter(estado='Finalizado').count()
+    total_criticos = Examen.objects.filter(resultado_critico=True).count()
+    total_pendientes = Examen.objects.exclude(estado='Finalizado').count()
+
+    # 1. Porcentaje Críticos vs Normales
+    porcentaje_criticos = round((total_criticos / total_biopsias * 100), 1) if total_biopsias > 0 else 0
+    porcentaje_normales = 100 - porcentaje_criticos
+
+    # 2. Biopsias por Patólogo
+    patologos_stats = User.objects.filter(groups__name='Patólogo').annotate(
+        total_asignadas=Count('examenes_asignados')
+    ).values('username', 'total_asignadas')
+
+    # 3. Biopsias por Tipo de Examen
+    examenes_por_tipo = TipoExamen.objects.annotate(
+        total=Count('examen')
+    ).values('nombre', 'total')
+
+    # 4. Biopsias por Mes (Evolución Temporal)
+    biopsias_mensuales = Examen.objects.annotate(
+        mes=TruncMonth('fecha_recepcion')
+    ).values('mes').annotate(total=Count('id')).order_by('mes')
+    
+    labels_meses = [b['mes'].strftime('%B %Y') for b in biopsias_mensuales if b['mes']]
+    data_meses = [b['total'] for b in biopsias_mensuales if b['mes']]
+
+    # 5. Cálculo del Tiempo Promedio de Respuesta (TAT - Turnaround Time)
+    finalizados = Examen.objects.filter(estado='Finalizado', fecha_entrega__isnull=False)
+    dias_tat = []
+    for ex in finalizados:
+        dias = (ex.fecha_entrega - ex.fecha_recepcion).days
+        if dias >= 0:
+            dias_tat.append(dias)
+    
+    tat_promedio_dias = round(sum(dias_tat) / len(dias_tat), 1) if dias_tat else "N/A"
+
+    return render(request, 'estadisticas.html', {
+        'total_biopsias': total_biopsias,
+        'total_finalizadas': total_finalizadas,
+        'total_criticos': total_criticos,
+        'total_pendientes': total_pendientes,
+        'tat_promedio_dias': tat_promedio_dias,
+        
+        # Datos para Chart.js
+        'labels_patologos': [p['username'] for p in patologos_stats],
+        'data_patologos': [p['total_asignadas'] for p in patologos_stats],
+        'labels_tipos': [e['nombre'] for e in examenes_por_tipo],
+        'data_tipos': [e['total'] for e in examenes_por_tipo],
+        'porcentaje_criticos': porcentaje_criticos,
+        'porcentaje_normales': porcentaje_normales,
+        'labels_meses': labels_meses,
+        'data_meses': data_meses,
+    })
+
+
+# --- EXPORTACIÓN A EXCEL / CSV PARA MINSAL Y AUDITORÍAS ---
+
+@login_required
+def exportar_excel(request):
+    """ Genera un archivo CSV/Excel listo para auditoría o MINSAL """
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    filename = f"Reporte_Biopsias_Biogest_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response, delimiter=';')
+    # Encabezados Oficiales
+    writer.writerow([
+        'Correlativo', 'RUT Paciente', 'Nombre Paciente', 'Fecha Nacimiento',
+        'Sexo', 'Médico Solicitante', 'Tipo Examen', 'Muestras', 'Fragmentos',
+        'Fecha Recepción', 'Fecha Entrega', 'Estado', 'Patólogo Asignado', 'Resultado Crítico'
+    ])
+
+    # Aplicar filtros si existen en la petición GET
+    examenes = Examen.objects.all().order_by('-fecha_recepcion')
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+
+    if fecha_inicio: examenes = examenes.filter(fecha_recepcion__gte=fecha_inicio)
+    if fecha_fin: examenes = examenes.filter(fecha_recepcion__lte=fecha_fin)
+
+    for ex in examenes:
+        writer.writerow([
+            ex.numero_correlativo,
+            ex.paciente.rut,
+            ex.paciente.nombre_completo,
+            ex.paciente.fecha_nacimiento.strftime('%d/%m/%Y') if ex.paciente.fecha_nacimiento else '',
+            ex.paciente.sexo,
+            ex.medico_solicitante.nombre if ex.medico_solicitante else '',
+            ex.tipo_examen.nombre,
+            ex.cantidad_muestras,
+            ex.numero_fragmentos,
+            ex.fecha_recepcion.strftime('%d/%m/%Y'),
+            ex.fecha_entrega.strftime('%d/%m/%Y') if ex.fecha_entrega else 'Pendiente',
+            ex.estado,
+            ex.patologo.username if ex.patologo else 'No asignado',
+            'SÍ' if ex.resultado_critico else 'NO'
+        ])
+
+    return response
+
+
+# --- MÓDULO DE FICHA CLÍNICA DE PACIENTES ---
+
+@login_required
+@user_passes_test(es_personal_autorizado, login_url='/inicio/')
+def lista_pacientes(request):
+    """ Muestra el listado completo de pacientes registrados en el sistema """
+    query = request.GET.get('q', '').strip()
+    pacientes = Paciente.objects.all().order_by('-created_at')
+
+    if query:
+        pacientes = pacientes.filter(
+            Q(rut__icontains=query) |
+            Q(nombre_completo__icontains=query) |
+            Q(email__icontains=query)
+        )
+
+    # Anotamos el total de biopsias históricas por paciente
+    pacientes = pacientes.annotate(total_biopsias=Count('examenes'))
+
+    return render(request, 'lista_pacientes.html', {
+        'pacientes': pacientes,
+        'query': query
+    })
+
+
+@login_required
+@user_passes_test(es_personal_autorizado, login_url='/inicio/')
+def detalle_paciente(request, paciente_id):
+    """ Muestra la Ficha Clínica completa de un paciente con todo su historial de biopsias """
+    paciente = get_object_or_404(Paciente, id=paciente_id)
+    examenes = paciente.examenes.all().order_by('-fecha_recepcion')
+    
+    return render(request, 'detalle_paciente.html', {
+        'paciente': paciente,
+        'examenes': examenes
+    })

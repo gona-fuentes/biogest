@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Ficha Clínica - {{ paciente.nombre_completo }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-6xl mx-auto">
+
+    <div class="flex justify-between items-center">
+        <a href="{% url 'lista_pacientes' %}" class="text-sm font-semibold text-gray-500 hover:text-clinica transition flex items-center gap-2">
+            <i class="fa-solid fa-arrow-left"></i> Volver a Fichas Clínicas
+        </a>
+        <span class="text-xs font-mono text-gray-400">ID Ficha: #{{ paciente.id }}</span>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-clinica">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-100 pb-4 mb-4 gap-2">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">{{ paciente.nombre_completo }}</h1>
+                <p class="text-sm text-gray-500 font-mono"><i class="fa-solid fa-id-card text-clinica mr-1"></i> RUT: <strong>{{ paciente.rut }}</strong></p>
+            </div>
+            <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold px-3 py-1 rounded-full">
+                Paciente Activo
+            </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div class="bg-gray-50 p-3 rounded border border-gray-100">
+                <span class="block text-xs font-bold text-gray-400 uppercase mb-0.5"><i class="fa-solid fa-cake-candles text-gray-400"></i> Fecha Nacimiento</span>
+                <span class="text-gray-800 font-semibold">{{ paciente.fecha_nacimiento|date:"d/m/Y"|default:"No registrada" }}</span>
+            </div>
+
+            <div class="bg-gray-50 p-3 rounded border border-gray-100">
+                <span class="block text-xs font-bold text-gray-400 uppercase mb-0.5"><i class="fa-solid fa-venus-mars text-gray-400"></i> Sexo</span>
+                <span class="text-gray-800 font-semibold">
+                    {% if paciente.sexo == 'M' %}Masculino
+                    {% elif paciente.sexo == 'F' %}Femenino
+                    {% else %}{{ paciente.sexo|default:"No especificado" }}{% endif %}
+                </span>
+            </div>
+
+            <div class="bg-gray-50 p-3 rounded border border-gray-100">
+                <span class="block text-xs font-bold text-gray-400 uppercase mb-0.5"><i class="fa-solid fa-phone text-gray-400"></i> Teléfono</span>
+                <span class="text-gray-800 font-semibold">{{ paciente.telefono|default:"No especificado" }}</span>
+            </div>
+
+            <div class="bg-gray-50 p-3 rounded border border-gray-100">
+                <span class="block text-xs font-bold text-gray-400 uppercase mb-0.5"><i class="fa-solid fa-envelope text-gray-400"></i> Correo Electrónico</span>
+                <span class="text-gray-800 font-semibold truncate block">{{ paciente.email|default:"No especificado" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+        <div class="p-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+            <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-clinica"></i> Historial de Exámenes y Biopsias ({{ examenes|length }})
+            </h3>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead class="bg-gray-100 text-gray-700 text-xs uppercase tracking-wider border-b">
+                    <tr>
+                        <th class="py-3 px-4">Correlativo</th>
+                        <th class="py-3 px-4">Fecha Recepción</th>
+                        <th class="py-3 px-4">Tipo de Examen</th>
+                        <th class="py-3 px-4">Patólogo Responsable</th>
+                        <th class="py-3 px-4">Estado</th>
+                        <th class="py-3 px-4 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for ex in examenes %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="py-3 px-4 font-bold text-clinica">{{ ex.numero_correlativo }}</td>
+                        <td class="py-3 px-4 text-gray-600">{{ ex.fecha_recepcion|date:"d/m/Y" }}</td>
+                        <td class="py-3 px-4 font-medium text-gray-800">{{ ex.tipo_examen.nombre }}</td>
+                        <td class="py-3 px-4 text-gray-600">
+                            {% if ex.patologo %}
+                                <i class="fa-solid fa-user-doctor text-emerald-600 mr-1"></i> {{ ex.patologo.username }}
+                            {% else %}
+                                <span class="text-gray-400 italic">Sin asignar</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4">
+                            {% if ex.resultado_critico %}
+                                <span class="bg-red-100 text-red-800 border-red-200 text-[10px] uppercase font-bold px-2 py-0.5 rounded border"><i class="fa-solid fa-triangle-exclamation"></i> Crítico</span>
+                            {% else %}
+                                <span class="{% if ex.estado == 'Finalizado' %}bg-emerald-100 text-emerald-800 border-emerald-200{% else %}bg-amber-100 text-amber-800 border-amber-200{% endif %} text-xs font-semibold px-2.5 py-0.5 rounded border">
+                                    {{ ex.estado }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="flex justify-center items-center gap-2">
+                                <a href="{% url 'detalle_muestra' ex.id %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded text-xs font-semibold border transition" title="Ver Muestra">
+                                    <i class="fa-regular fa-eye"></i> Ver
+                                </a>
+                                {% if ex.estado == 'Finalizado' %}
+                                <a href="{% url 'generar_pdf' ex.id %}" target="_blank" class="bg-clinica hover:bg-gray-900 text-white px-2.5 py-1 rounded text-xs font-semibold transition shadow-sm" title="Descargar PDF">
+                                    <i class="fa-solid fa-file-pdf"></i> PDF
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-6 text-gray-500">Este paciente aún no tiene biopsias registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block title %}Fichas Clínicas - Biogest{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <i class="fa-solid fa-id-card-clip text-clinica"></i> Registro de Fichas Clínicas
+            </h1>
+            <p class="text-sm text-gray-500">Listado de pacientes y su historial de trazabilidad de biopsias.</p>
+        </div>
+        <a href="{% url 'nueva_biopsia' %}" class="bg-patologia hover:bg-emerald-600 text-white font-bold py-2.5 px-5 rounded-md transition shadow flex items-center gap-2">
+            <i class="fa-solid fa-user-plus"></i> Nueva Biopsia / Paciente
+        </a>
+    </div>
+
+    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <form method="GET" action="{% url 'lista_pacientes' %}" class="flex w-full md:w-2/3 lg:w-1/2">
+            <input type="text" name="q" value="{{ query }}" placeholder="Buscar por RUT, Nombre o Correo..." 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-clinica text-sm">
+            <button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-r-md border border-gray-300 border-l-0 transition text-sm font-semibold">
+                <i class="fa-solid fa-magnifying-glass"></i> Buscar
+            </button>
+            {% if query %}
+                <a href="{% url 'lista_pacientes' %}" class="ml-3 text-red-500 hover:text-red-700 font-bold py-2 flex items-center text-sm">
+                    <i class="fa-solid fa-xmark mr-1"></i> Limpiar
+                </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead class="bg-clinica text-white text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="py-3.5 px-4">RUT</th>
+                        <th class="py-3.5 px-4">Nombre Completo</th>
+                        <th class="py-3.5 px-4">Fecha Nacimiento</th>
+                        <th class="py-3.5 px-4">Sexo</th>
+                        <th class="py-3.5 px-4">Contacto</th>
+                        <th class="py-3.5 px-4 text-center">Biopsias</th>
+                        <th class="py-3.5 px-4 text-center">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for paciente in pacientes %}
+                    <tr class="hover:bg-emerald-50 transition">
+                        <td class="py-3 px-4 font-bold text-gray-800">{{ paciente.rut }}</td>
+                        <td class="py-3 px-4 font-semibold text-clinica">{{ paciente.nombre_completo }}</td>
+                        <td class="py-3 px-4 text-gray-600">
+                            {% if paciente.fecha_nacimiento %}
+                                {{ paciente.fecha_nacimiento|date:"d/m/Y" }}
+                            {% else %}
+                                <span class="text-gray-400 italic">No registrada</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-gray-600">
+                            {% if paciente.sexo == 'M' %}Masculino
+                            {% elif paciente.sexo == 'F' %}Femenino
+                            {% else %}{{ paciente.sexo|default:"-" }}{% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-xs text-gray-600">
+                            <div><i class="fa-solid fa-phone text-gray-400 mr-1"></i> {{ paciente.telefono|default:"S/N" }}</div>
+                            <div><i class="fa-solid fa-envelope text-gray-400 mr-1"></i> {{ paciente.email|default:"S/N" }}</div>
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full text-xs border border-emerald-200">
+                                {{ paciente.total_biopsias }} examen(es)
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <a href="{% url 'detalle_paciente' paciente.id %}" class="bg-clinica hover:bg-gray-900 text-white px-3 py-1.5 rounded text-xs font-semibold transition inline-flex items-center gap-1.5 shadow-sm">
+                                <i class="fa-solid fa-folder-open"></i> Ver Ficha
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-8 text-gray-500">
+                            <i class="fa-solid fa-hospital-user text-3xl mb-2 text-gray-300 block"></i>
+                            No hay pacientes registrados en el sistema.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

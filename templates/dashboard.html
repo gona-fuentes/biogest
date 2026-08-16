@@ -3,6 +3,7 @@
 {% block title %}Panel de Laboratorio - Biogest{% endblock %}
 
 {% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <div class="space-y-6">
 
     <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
@@ -75,8 +76,10 @@
                                         class="px-2.5 py-1.5 rounded text-xs font-bold transition {% if muestra.alerta_chat_laboratorio %}bg-red-500 text-white animate-pulse shadow-md{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
                                     <i class="fa-regular fa-comments text-sm"></i>
                                 </button>
-                                
-                                <a href="{% url 'detalle_muestra' muestra.id %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1.5 rounded text-xs font-semibold transition" title="Ver Ficha">
+                                <button onclick="generarEImprimirEtiqueta('{{ muestra.numero_correlativo }}', '{{ muestra.paciente.nombre_completo|escapejs }}', '{{ muestra.paciente.rut }}')" 
+                                        class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1.5 rounded text-xs font-semibold transition border border-gray-200" title="Imprimir Etiqueta para Frasco">
+                                    <i class="fa-solid fa-qrcode"></i>
+                                </button>                                <a href="{% url 'detalle_muestra' muestra.id %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1.5 rounded text-xs font-semibold transition" title="Ver Ficha">
                                     <i class="fa-regular fa-eye"></i>
                                 </a>
                                 
@@ -218,6 +221,62 @@
             input.value = '';
             cargarMensajes(id);
         });
+    }
+</script>
+<div id="etiqueta-print-zone" style="display:none;"></div>
+
+<script>
+    function generarEImprimirEtiqueta(correlativo, paciente, rut) {
+        const printZone = document.getElementById('etiqueta-print-zone');
+        printZone.innerHTML = ''; // Limpiar por si había uno anterior
+        
+        // 1. Generar el código QR
+        new QRCode(printZone, {
+            text: correlativo,
+            width: 120,
+            height: 120,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+
+        // 2. Esperar 100ms a que la librería dibuje el QR y luego abrir la ventana de impresión
+        setTimeout(() => {
+            const qrImageSrc = printZone.querySelector('img').src;
+            const ventanaImpresion = window.open('', '', 'width=400,height=500');
+            
+            ventanaImpresion.document.write(`
+                <html>
+                    <head>
+                        <title>Etiqueta Biopsia - ${correlativo}</title>
+                        <style>
+                            body { font-family: 'Arial', sans-serif; text-align: center; margin: 0; padding: 10px; color: black; }
+                            h2 { margin: 0 0 5px 0; font-size: 20px; font-weight: 900; }
+                            .qr-container { margin: 10px auto; display: flex; justify-content: center; }
+                            .qr-container img { max-width: 110px; }
+                            .info-box { font-size: 12px; text-align: left; line-height: 1.4; padding: 12px; border: 2px dashed #000; display: inline-block; min-width: 220px; border-radius: 8px;}
+                            p { margin: 3px 0; }
+                            @media print {
+                                @page { margin: 0; size: auto; }
+                                body { padding: 5mm; }
+                            }
+                        </style>
+                    </head>
+                    <body onload="setTimeout(() => { window.print(); window.close(); }, 300)">
+                        <div class="info-box">
+                            <h2>${correlativo}</h2>
+                            <p><strong>Paciente:</strong> ${paciente}</p>
+                            <p><strong>RUT:</strong> ${rut}</p>
+                            <div class="qr-container">
+                                <img src="${qrImageSrc}" alt="QR Code" />
+                            </div>
+                            <p style="text-align:center; font-size:10px; font-weight:bold;">Biogest Trazabilidad</p>
+                        </div>
+                    </body>
+                </html>
+            `);
+            ventanaImpresion.document.close();
+        }, 150); 
     }
 </script>
 {% endblock %}
