@@ -1,28 +1,28 @@
 from django import forms
-from .models import Examen
+from .models import Examen, Paciente
 
 class ExamenForm(forms.ModelForm):
+    # --- Campos para la Ficha Clínica del Paciente ---
+    rut = forms.CharField(max_length=20, label='RUT del Paciente', widget=forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}))
+    nombre_completo = forms.CharField(max_length=255, label='Nombre Completo', widget=forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}))
+    fecha_nacimiento = forms.DateField(required=False, label='Fecha de Nacimiento', widget=forms.DateInput(attrs={'type': 'date', 'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}))
+    sexo = forms.ChoiceField(choices=[('', 'Seleccione...'), ('M', 'Masculino'), ('F', 'Femenino'), ('O', 'Otro')], required=False, widget=forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}))
+    telefono = forms.CharField(max_length=20, required=False, label='Teléfono', widget=forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}))
+    email = forms.EmailField(required=False, label='Correo Electrónico', widget=forms.EmailInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}))
+
     class Meta:
         model = Examen
-        # Excluimos campos que se generan automáticamente o que llena el patólogo después
+        # Ya no ponemos paciente_rut ni paciente_nombre
         fields = [
-            'paciente_nombre', 'paciente_rut', 'fecha_toma', 'fecha_recepcion',
-            'medico_solicitante', 'laboratorio', 'tipo_examen', 
-            'cantidad_muestras', 'numero_fragmentos'
+            'tipo_examen', 'medico_solicitante', 'laboratorio', 
+            'fecha_toma', 'fecha_recepcion', 'cantidad_muestras', 'numero_fragmentos'
         ]
-        
-        # Le damos un poco de estilo base de Tailwind a los inputs
         widgets = {
-            'fecha_toma': forms.DateInput(attrs={'type': 'date'}),
-            'fecha_recepcion': forms.DateInput(attrs={'type': 'date'}),
+            'fecha_toma': forms.DateInput(attrs={'type': 'date', 'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
+            'fecha_recepcion': forms.DateInput(attrs={'type': 'date', 'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
+            'tipo_examen': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
+            'medico_solicitante': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
+            'laboratorio': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
+            'cantidad_muestras': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
+            'numero_fragmentos': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Aplicamos clases de Tailwind a todos los campos dinámicamente
-        for field in self.fields.values():
-            field.widget.attrs.update({
-                'class': 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-clinica'
-            })
-
-            

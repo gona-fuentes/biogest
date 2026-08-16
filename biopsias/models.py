@@ -2,6 +2,18 @@ from django.db import models
 from django.conf import settings
 from usuarios.models import Laboratorio
 
+class Paciente(models.Model):
+    rut = models.CharField(max_length=20, unique=True)
+    nombre_completo = models.CharField(max_length=255)
+    fecha_nacimiento = models.DateField(null=True, blank=True)
+    sexo = models.CharField(max_length=20, choices=[('M', 'Masculino'), ('F', 'Femenino'), ('O', 'Otro')], blank=True)
+    telefono = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.nombre_completo} - {self.rut}"
+
 class Medico(models.Model):
     nombre = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -13,7 +25,6 @@ class Medico(models.Model):
 class TipoExamen(models.Model):
     nombre = models.CharField(max_length=150, unique=True)
     descripcion = models.TextField(blank=True, null=True)
-    # NUEVO CAMPO: Guarda la plantilla dinámica para este tipo de biopsia
     plantilla_preinforme = models.TextField(
         blank=True, 
         null=True, 
@@ -31,8 +42,8 @@ class Examen(models.Model):
     fecha_recepcion = models.DateField()
     fecha_entrega = models.DateField(null=True, blank=True)
     
-    paciente_nombre = models.CharField(max_length=255)
-    paciente_rut = models.CharField(max_length=20)
+    # Vinculación a Ficha Clínica
+    paciente = models.ForeignKey(Paciente, on_delete=models.PROTECT, related_name='examenes')
     
     medico_solicitante = models.ForeignKey(Medico, on_delete=models.SET_NULL, null=True)
     cantidad_muestras = models.IntegerField()
@@ -40,11 +51,10 @@ class Examen(models.Model):
     
     tincion_rutina = models.CharField(max_length=255, blank=True, null=True)
     tecnicas_especiales = models.TextField(blank=True, null=True)
-    # Banderas para notificaciones de Chat en Dashboards
+    
     alerta_chat_patologo = models.BooleanField(default=False)
     alerta_chat_laboratorio = models.BooleanField(default=False)
 
-    # Relaciones principales (Llaves Foráneas)
     tipo_examen = models.ForeignKey(TipoExamen, on_delete=models.PROTECT)
     laboratorio = models.ForeignKey(Laboratorio, on_delete=models.PROTECT)
     patologo = models.ForeignKey(
@@ -57,19 +67,23 @@ class Examen(models.Model):
     
     estado = models.CharField(max_length=50) # Ej: 'En proceso', 'Finalizado'
     archivo_informe = models.FileField(upload_to='informes/', null=True, blank=True)
-    galeria_imagenes = models.JSONField(null=True, blank=True) # Guardará rutas de imágenes múltiples
+    galeria_imagenes = models.JSONField(null=True, blank=True) 
+    
+    # Nuevos controles de seguridad médica
+    resultado_critico = models.BooleanField(default=False)
+    informe_cerrado = models.BooleanField(default=False)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.numero_correlativo} - {self.paciente_nombre}"
+        return f"{self.numero_correlativo} - {self.paciente.nombre_completo}"
 
 class Comentario(models.Model):
     examen = models.ForeignKey(Examen, on_delete=models.CASCADE, related_name='comentarios')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     comentario = models.TextField()
-    tipo = models.CharField(max_length=100) # Ej: 'Nota interna', 'Cambio de estado'
+    tipo = models.CharField(max_length=100) # Ej: 'Nota interna', 'Cambio de estado', 'Apertura Admin'
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

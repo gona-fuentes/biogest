@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Biogest - Trazabilidad{% endblock %}</title>
     
-    <!-- Tailwind CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script>
@@ -13,8 +14,9 @@
             theme: {
                 extend: {
                     colors: {
-                        clinica: '#0ea5e9', // Azul médico
-                        patologia: '#f59e0b', // Naranja de alerta/espera
+                        clinica: '#064e3b', // Verde oscuro intenso
+                        patologia: '#10b981', // Verde esmeralda (acciones y alertas)
+                        critico: '#ef4444', // Rojo para alertas críticas
                     }
                 }
             }
@@ -23,36 +25,32 @@
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen flex flex-col">
 
-    <!-- Barra de Navegación -->
-<nav class="bg-clinica text-white shadow-md">
+    <nav class="bg-clinica text-white shadow-md bg-gradient-to-r from-clinica to-gray-900">
         <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
             
-            <a href="{% url 'inicio' %}" class="text-xl font-bold tracking-wider hover:text-gray-200 transition">
-                🔬 BIOGEST
+            <a href="{% url 'inicio' %}" class="text-xl font-bold tracking-wider hover:text-gray-200 transition flex items-center gap-2">
+                <i class="fa-solid fa-microscope"></i> BIOGEST
             </a>
             
             <div>
                 {% if user.is_authenticated %}
-                    <span class="mr-4 text-sm">Hola, <strong>{{ user.username }}</strong></span>
+                    <span class="mr-4 text-sm"><i class="fa-solid fa-user-md mr-1"></i>Hola, <strong>{{ user.username }}</strong></span>
                     <form action="{% url 'logout' %}" method="post" class="inline">
                         {% csrf_token %}
-                        <button type="submit" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm transition">Salir</button>
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm transition shadow">Salir</button>
                     </form>
                 {% endif %}
             </div>
         </div>
     </nav>
 
-    <!-- Contenido Principal -->
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6">
         {% block content %}
-        <!-- El contenido de las otras vistas se inyectará aquí -->
         {% endblock %}
     </main>
 
-    <!-- Pie de página opcional -->
     <footer class="bg-white border-t border-gray-200 py-4 text-center text-xs text-gray-500">
-        &copy; 2026 Biogest - Sistema de Trazabilidad
+        &copy; 2026 Biogest - Sistema de Trazabilidad Patológica
     </footer>
 
 </body>
