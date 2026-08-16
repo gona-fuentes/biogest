@@ -76,11 +76,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             let inputEmail = document.getElementById('id_email');
                             let inputTelefono = document.getElementById('id_telefono');
                             let inputSexo = document.getElementById('id_sexo');
+                            let inputFechaNac = document.getElementById('id_fecha_nacimiento');
 
                             if(inputNombre) inputNombre.value = data.nombre_completo;
                             if(inputEmail) inputEmail.value = data.email;
                             if(inputTelefono) inputTelefono.value = data.telefono;
                             if(inputSexo) inputSexo.value = data.sexo;
+                            if(inputFechaNac) inputFechaNac.value = data.fecha_nacimiento;
                             
                             // Opcional: Feedback visual
                             inputRut.classList.add('border-green-500', 'bg-green-50');

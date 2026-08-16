@@ -125,6 +125,7 @@ def dashboard_patologo(request):
     query_historial = request.GET.get('q_historial', '')
     
     if request.method == 'POST':
+        # ... (Mantén tu código actual del POST para el chat) ...
         action = request.POST.get('action')
         examen_id = request.POST.get('examen_id')
         muestra = get_object_or_404(Examen, id=examen_id)
@@ -136,17 +137,18 @@ def dashboard_patologo(request):
                 muestra.alerta_chat_laboratorio = True
                 muestra.alerta_chat_patologo = False
                 muestra.save()
-        
         elif action == 'marcar_leido':
             muestra.alerta_chat_patologo = False
             muestra.save()
             
         return redirect('dashboard_patologo')
 
-    # Muestras pendientes para las CARDS
-    muestras_pendientes = Examen.objects.exclude(estado='Finalizado').order_by('-fecha_recepcion')
+    # CORRECCIÓN: Filtrar para que solo vea las no asignadas o las suyas
+    muestras_pendientes = Examen.objects.exclude(estado='Finalizado').filter(
+        Q(patologo__isnull=True) | Q(patologo=request.user)
+    ).order_by('-fecha_recepcion')
 
-    # Histórico general / Buscador de Exámenes
+    # Histórico general
     historial_examenes = Examen.objects.all().order_by('-fecha_recepcion')
     if query_historial:
         historial_examenes = historial_examenes.filter(
@@ -291,7 +293,6 @@ def generar_informe_pdf(request, examen_id):
     })
 
 
-# --- API / AJAX ---
 
 def buscar_paciente_por_rut(request, rut):
     """ Devuelve los datos del paciente para autocompletar formularios """
@@ -302,7 +303,79 @@ def buscar_paciente_por_rut(request, rut):
             'nombre_completo': paciente.nombre_completo,
             'email': paciente.email,
             'telefono': paciente.telefono,
-            'sexo': paciente.sexo
+            'sexo': paciente.sexo,
+            # CORRECCIÓN: Formatear la fecha para que el input type="date" de HTML5 la entienda
+            'fecha_nacimiento': paciente.fecha_nacimiento.strftime('%Y-%m-%d') if paciente.fecha_nacimiento else ''
         })
     except Paciente.DoesNotExist:
         return JsonResponse({'encontrado': False})
+
+
+
+
+
+
+@login_required
+def api_check_pendientes(request):
+    """ Devuelve las muestras activas y el estado de alerta del chat para cada usuario """
+    if es_patologo(request.user):
+        muestras = Examen.objects.exclude(estado='Finalizado').filter(
+            Q(patologo__isnull=True) | Q(patologo=request.user)
+        )
+        data = [{'id': m.id, 'alerta_chat': m.alerta_chat_patologo} for m in muestras]
+        return JsonResponse({'muestras': data})
+    elif es_laboratorio(request.user):
+        muestras = Examen.objects.all()
+        data = [{'id': m.id, 'alerta_chat': m.alerta_chat_laboratorio} for m in muestras]
+        return JsonResponse({'muestras': data})
+    return JsonResponse({'muestras': []})
+
+@login_required
+def api_chat_examen(request, examen_id):
+    """ Maneja envío, consulta y marcado de leído de mensajes en tiempo real """
+    muestra = get_object_or_404(Examen, id=examen_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        # Acción para apagar la animación / marcar como leído
+        if action == 'marcar_leido':
+            if es_patologo(request.user):
+                muestra.alerta_chat_patologo = False
+            else:
+                muestra.alerta_chat_laboratorio = False
+            muestra.save()
+            return JsonResponse({'status': 'ok', 'alerta_cleared': True})
+
+        # Envío de mensaje
+        mensaje = request.POST.get('mensaje', '').strip()
+        if mensaje:
+            Comentario.objects.create(
+                examen=muestra,
+                user=request.user,
+                comentario=mensaje,
+                tipo='Mensaje / Consulta'
+            )
+            # Activar la alerta en la contraparte
+            if es_patologo(request.user):
+                muestra.alerta_chat_laboratorio = True
+                muestra.alerta_chat_patologo = False
+            else:
+                muestra.alerta_chat_patologo = True
+                muestra.alerta_chat_laboratorio = False
+            muestra.save()
+        return JsonResponse({'status': 'ok'})
+
+    # GET: Obtener mensajes y estado actual de alerta
+    mensajes = muestra.comentarios.filter(tipo='Mensaje / Consulta').order_by('created_at')
+    data = []
+    for msg in mensajes:
+        data.append({
+            'usuario': msg.user.username,
+            'es_mio': msg.user == request.user,
+            'texto': msg.comentario,
+            'fecha': msg.created_at.strftime("%d/%m %H:%M")
+        })
+    
+    alerta_actual = muestra.alerta_chat_patologo if es_patologo(request.user) else muestra.alerta_chat_laboratorio
+    return JsonResponse({'mensajes': data, 'alerta_chat': alerta_actual})

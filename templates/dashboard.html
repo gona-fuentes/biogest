@@ -1,240 +1,223 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard Laboratorio - Biogest{% endblock %}
+{% block title %}Panel de Laboratorio - Biogest{% endblock %}
 
 {% block content %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<div class="space-y-6">
 
-<div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-    <h1 class="text-2xl font-bold text-gray-800">Muestras Ingresadas</h1>
-    
-    <form method="GET" action="{% url 'dashboard' %}" class="flex w-full md:w-1/2">
-        <input type="text" name="q" value="{{ query }}" placeholder="Buscar por RUT, Nombre o Correlativo..." 
-               class="w-full px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-clinica text-sm">
-        <button type="submit" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-r-md border border-gray-300 border-l-0 transition text-sm font-semibold">
-            🔍 Buscar
-        </button>
-        {% if query %}
-            <a href="{% url 'dashboard' %}" class="ml-2 text-red-500 hover:text-red-700 font-bold py-2 px-2 flex items-center text-sm">
-                ✖ Limpiar
-            </a>
-        {% endif %}
-    </form>
-
-    <a href="{% url 'registrar_biopsia' %}" class="bg-clinica hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-200 whitespace-nowrap shadow-sm text-sm">
-        + Registrar Nueva Biopsia
-    </a>
-</div>
-
-<div class="bg-white rounded-lg shadow-md overflow-x-auto border border-gray-200 mb-6">
-    <table class="w-full text-left border-collapse text-sm">
-        <thead class="bg-gray-100 text-gray-700 text-xs uppercase tracking-wider border-b">
-            <tr>
-                <th class="py-3 px-4">Correlativo</th>
-                <th class="py-3 px-4">Paciente</th>
-                <th class="py-3 px-4">RUT</th>
-                <th class="py-3 px-4">Examen</th>
-                <th class="py-3 px-4">Estado</th>
-                <th class="py-3 px-4 text-center">Acciones</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-200">
-            {% for muestra in muestras %}
-            <tr class="hover:bg-gray-50 transition">
-                <td class="py-3 px-4 font-bold text-clinica">{{ muestra.numero_correlativo }}</td>
-                <td class="py-3 px-4">{{ muestra.paciente_nombre }}</td>
-                <td class="py-3 px-4">{{ muestra.paciente_rut }}</td>
-                <td class="py-3 px-4">{{ muestra.tipo_examen.nombre }}</td>
-                <td class="py-3 px-4">
-                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-blue-200">
-                        {{ muestra.estado }}
-                    </span>
-                </td>
-                <td class="py-3 px-4 text-center">
-                    <div class="flex justify-center items-center gap-1.5">
-                        <a href="{% url 'detalle_muestra' muestra.id %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded text-xs font-semibold border transition">👁️ Detalle</a>
-                        
-                        <button type="button" onclick="abrirModalChat('chat-{{ muestra.id }}')" class="px-2.5 py-1 rounded text-xs font-semibold border transition flex items-center gap-1 {% if muestra.alerta_chat_laboratorio %}bg-red-500 text-white border-red-600 animate-pulse{% else %}bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100{% endif %}">
-                            💬 {% if muestra.alerta_chat_laboratorio %}Nuevo Mensaje{% else %}Chat{% endif %}
-                        </button>
-                        
-                        <button type="button" onclick="abrirModalQR('{{ muestra.numero_correlativo }}', '{{ muestra.paciente_nombre|escapejs }}', '{{ muestra.paciente_rut }}', '{{ muestra.fecha_recepcion|date:"d/m/Y" }}')" class="px-2.5 py-1 rounded text-xs font-semibold border transition bg-green-50 text-green-700 border-green-200 hover:bg-green-100 flex items-center gap-1" title="Imprimir Etiqueta QR">
-                            🏷️ QR
-                        </button>
-
-                        {% if muestra.estado == 'Finalizado' %}
-                        <a href="{% url 'generar_pdf' muestra.id %}" target="_blank" class="bg-gray-800 hover:bg-gray-900 text-white px-2.5 py-1 rounded text-xs font-semibold transition shadow-sm">📄 PDF</a>
-                        {% endif %}
-                    </div>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" class="text-center py-6 text-gray-500">No hay muestras registradas.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-{% for muestra in muestras %}
-<div id="chat-{{ muestra.id }}" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full flex flex-col max-h-[80vh]">
-        <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
-            <h3 class="font-bold text-gray-800">💬 Chat Interno: {{ muestra.numero_correlativo }}</h3>
-            <div class="flex gap-2">
-                {% if muestra.alerta_chat_laboratorio %}
-                <form method="POST" action="{% url 'dashboard' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="marcar_leido">
-                    <input type="hidden" name="examen_id" value="{{ muestra.id }}">
-                    <button type="submit" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300">Marcar Leído</button>
-                </form>
-                {% endif %}
-                <button type="button" onclick="cerrarModalChat('chat-{{ muestra.id }}')" class="text-gray-500 hover:text-red-500 font-bold text-xl leading-none">&times;</button>
-            </div>
+    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-flask text-clinica"></i> Panel de Recepción y Proceso
+            </h1>
+            <p class="text-sm text-gray-500">Gestión de muestras ingresadas y trazabilidad activa.</p>
         </div>
-        
-        <div class="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50">
-            {% for msg in muestra.comentarios.all %}
-                {% if msg.tipo == 'Mensaje / Consulta' %}
-                    <div class="bg-white p-3 rounded shadow-sm border text-sm {% if msg.user == request.user %}border-blue-200 ml-8{% else %}border-gray-200 mr-8{% endif %}">
-                        <span class="font-bold text-xs text-gray-500 block mb-1">{{ msg.user.username }} - {{ msg.created_at|date:"d/m H:i" }}</span>
-                        <p class="text-gray-800">{{ msg.comentario }}</p>
-                    </div>
-                {% endif %}
-            {% empty %}
-                <p class="text-center text-xs text-gray-400 italic">No hay mensajes.</p>
-            {% endfor %}
-        </div>
-        
-        <div class="p-4 border-t bg-white rounded-b-lg">
-            {% if muestra.estado == 'Finalizado' %}
-                <p class="text-center text-red-500 text-xs font-bold py-2">🚫 Examen Finalizado. El chat ha sido cerrado.</p>
-            {% else %}
-                <form method="POST" action="{% url 'dashboard' %}" class="flex gap-2">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="enviar_chat">
-                    <input type="hidden" name="examen_id" value="{{ muestra.id }}">
-                    <input type="text" name="mensaje" required placeholder="Escriba un mensaje al patólogo..." class="w-full text-sm px-3 py-2 border rounded focus:ring-blue-500 focus:outline-none">
-                    <button type="submit" class="bg-blue-600 text-white font-bold px-4 py-2 rounded text-sm hover:bg-blue-700 shrink-0 transition">Enviar</button>
-                </form>
-            {% endif %}
-        </div>
+        <a href="{% url 'nueva_biopsia' %}" class="bg-patologia hover:bg-emerald-600 text-white font-bold py-2.5 px-6 rounded-md transition shadow flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i> Registrar Nueva Biopsia
+        </a>
     </div>
-</div>
-{% endfor %}
 
-<div id="modalQR" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full flex flex-col">
-        <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
-            <h3 class="font-bold text-gray-800 flex items-center gap-2"><span>🏷️</span> Etiqueta de Muestra</h3>
-            <button type="button" onclick="cerrarModalQR()" class="text-gray-500 hover:text-red-500 font-bold text-xl leading-none">&times;</button>
-        </div>
-        
-        <div id="etiqueta-imprimir" class="p-6 flex flex-col items-center bg-white text-center">
-            <h2 id="qr-correlativo" class="text-2xl font-black text-gray-900 mb-2 tracking-wider"></h2>
-            
-            <div id="qrcode" class="mb-4 bg-white p-2 border border-gray-300 rounded shadow-sm inline-block"></div>
-            
-            <div class="text-sm text-gray-800 w-full text-left space-y-1 bg-gray-50 p-3 border border-gray-200 rounded">
-                <p><strong>Paciente:</strong> <span id="qr-paciente"></span></p>
-                <p><strong>RUT:</strong> <span id="qr-rut"></span></p>
-                <p><strong>Ingreso:</strong> <span id="qr-fecha"></span></p>
-            </div>
-        </div>
-        
-        <div class="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end">
-            <button type="button" onclick="imprimirEtiqueta()" class="bg-green-600 text-white font-bold px-4 py-2 rounded text-sm hover:bg-green-700 transition flex items-center gap-2 shadow w-full justify-center">
-                🖨️ Imprimir Etiqueta
+    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <form method="GET" action="{% url 'dashboard' %}" class="flex w-full md:w-2/3 lg:w-1/2">
+            <input type="text" name="q" value="{{ query }}" placeholder="Buscar por RUT, Nombre o Correlativo..." 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-clinica text-sm">
+            <button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-r-md border border-gray-300 border-l-0 transition text-sm font-semibold">
+                <i class="fa-solid fa-magnifying-glass"></i> Buscar
             </button>
+            {% if query %}
+                <a href="{% url 'dashboard' %}" class="ml-3 text-red-500 hover:text-red-700 font-bold py-2 flex items-center text-sm">
+                    <i class="fa-solid fa-xmark mr-1"></i> Limpiar
+                </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead class="bg-clinica text-white text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="py-3.5 px-4">Correlativo</th>
+                        <th class="py-3.5 px-4">Paciente</th>
+                        <th class="py-3.5 px-4">RUT</th>
+                        <th class="py-3.5 px-4">Tipo de Examen</th>
+                        <th class="py-3.5 px-4">Estado</th>
+                        <th class="py-3.5 px-4 text-center">Patólogo</th>
+                        <th class="py-3.5 px-4 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for muestra in muestras %}
+                    <tr class="hover:bg-emerald-50 transition" data-id="{{ muestra.id }}">
+                        <td class="py-3 px-4 font-bold text-gray-800">{{ muestra.numero_correlativo }}</td>
+                        <td class="py-3 px-4 font-medium">{{ muestra.paciente.nombre_completo }}</td>
+                        <td class="py-3 px-4 text-gray-600">{{ muestra.paciente.rut }}</td>
+                        <td class="py-3 px-4 text-gray-600">{{ muestra.tipo_examen.nombre }}</td>
+                        <td class="py-3 px-4">
+                            {% if muestra.resultado_critico %}
+                                <span class="bg-red-100 text-red-800 border-red-200 text-[10px] uppercase font-bold px-2 py-0.5 rounded border"><i class="fa-solid fa-triangle-exclamation"></i> Crítico</span>
+                            {% else %}
+                                <span class="{% if muestra.estado == 'Finalizado' %}bg-emerald-100 text-emerald-800 border-emerald-200{% elif muestra.estado == 'Ingresada' %}bg-gray-100 text-gray-800 border-gray-200{% else %}bg-amber-100 text-amber-800 border-amber-200{% endif %} text-xs font-semibold px-2.5 py-0.5 rounded border">
+                                    {{ muestra.estado }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            {% if muestra.patologo %}
+                                <span class="text-xs font-bold text-clinica"><i class="fa-solid fa-user-doctor mr-1"></i> {{ muestra.patologo.username }}</span>
+                            {% else %}
+                                <span class="text-xs text-gray-400 italic">No asignado</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="flex justify-center items-center gap-2">
+                                <button id="btn-chat-{{ muestra.id }}" onclick="abrirModalChat('{{ muestra.id }}')" title="Chat Interno"
+                                        class="px-2.5 py-1.5 rounded text-xs font-bold transition {% if muestra.alerta_chat_laboratorio %}bg-red-500 text-white animate-pulse shadow-md{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                                    <i class="fa-regular fa-comments text-sm"></i>
+                                </button>
+                                
+                                <a href="{% url 'detalle_muestra' muestra.id %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1.5 rounded text-xs font-semibold transition" title="Ver Ficha">
+                                    <i class="fa-regular fa-eye"></i>
+                                </a>
+                                
+                                {% if muestra.estado == 'Finalizado' %}
+                                <a href="{% url 'generar_pdf' muestra.id %}" target="_blank" class="bg-gray-800 hover:bg-black text-white px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-sm" title="Descargar PDF">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+
+                    <div id="chat-modal-{{ muestra.id }}" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+                        <div class="bg-white rounded-lg shadow-xl max-w-lg w-full flex flex-col max-h-[80vh]">
+                            <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+                                <h3 class="font-bold text-gray-800"><i class="fa-solid fa-comments text-clinica"></i> Chat: {{ muestra.numero_correlativo }}</h3>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="marcarLeido('{{ muestra.id }}')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-2.5 py-1 rounded transition">
+                                        <i class="fa-solid fa-check text-emerald-600 mr-1"></i> Marcar Leído
+                                    </button>
+                                    <button onclick="cerrarModalChat('{{ muestra.id }}')" class="text-gray-500 hover:text-red-500 font-bold ml-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+                                </div>
+                            </div>
+                            <div id="chat-box-{{ muestra.id }}" class="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50">
+                                </div>
+                            {% if muestra.estado != 'Finalizado' %}
+                            <div class="p-4 border-t bg-white rounded-b-lg">
+                                <form onsubmit="enviarMensaje(event, '{{ muestra.id }}')" class="flex gap-2">
+                                    {% csrf_token %}
+                                    <input type="text" id="input-msg-{{ muestra.id }}" required placeholder="Escribir mensaje al patólogo..." class="w-full text-sm px-3 py-2 border border-gray-300 rounded focus:ring-clinica focus:outline-none">
+                                    <button type="submit" class="bg-clinica hover:bg-gray-900 text-white font-bold px-4 py-2 rounded text-sm"><i class="fa-solid fa-paper-plane"></i></button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-8 text-gray-500">
+                            <i class="fa-solid fa-inbox text-3xl mb-2 text-gray-300 block"></i>
+                            No se encontraron muestras registradas.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <script>
-    // --- FUNCIONES CHAT ---
-    function abrirModalChat(id) {
-        const modal = document.getElementById(id);
-        if (modal) {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-    }
+    let chatIntervals = {};
 
-    function cerrarModalChat(id) {
-        const modal = document.getElementById(id);
-        if (modal) {
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-        }
-    }
-
-    // --- FUNCIONES CÓDIGO QR ---
-    function abrirModalQR(correlativo, paciente, rut, fecha) {
-        // 1. Llenamos los textos visuales para el humano
-        document.getElementById('qr-correlativo').innerText = correlativo;
-        document.getElementById('qr-paciente').innerText = paciente;
-        document.getElementById('qr-rut').innerText = rut;
-        document.getElementById('qr-fecha').innerText = fecha;
-
-        // 2. Limpiamos el contenedor
-        const qrContainer = document.getElementById('qrcode');
-        qrContainer.innerHTML = ''; 
-        
-        // 3. CORRECCIÓN: El QR solo debe almacenar el ID único para que el escáner lo lea ultra rápido
-        const qrText = correlativo;
-
-        // 4. Generamos el QR con un nivel de corrección adecuado (L = Low/Estándar)
-        new QRCode(qrContainer, {
-            text: qrText,
-            width: 120,
-            height: 120,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.L
-        });
-
-        // 5. Mostramos el modal
-        const modalQR = document.getElementById('modalQR');
-        modalQR.classList.remove('hidden');
-        modalQR.classList.add('flex');
-    }
-
-    function cerrarModalQR() {
-        const modalQR = document.getElementById('modalQR');
-        modalQR.classList.remove('flex');
-        modalQR.classList.add('hidden');
-    }
-
-    // --- FUNCION IMPRESIÓN ---
-    function imprimirEtiqueta() {
-        const contenido = document.getElementById('etiqueta-imprimir').innerHTML;
-        const ventanaImpresion = window.open('', '', 'width=400,height=500');
-        
-        ventanaImpresion.document.write(`
-            <html>
-                <head>
-                    <title>Impresión de Etiqueta</title>
-                    <style>
-                        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center; margin: 0; padding: 15px; background: white; color: black; }
-                        h2 { margin: 0 0 10px 0; font-size: 22px; font-weight: bold; }
-                        #qrcode { margin: 0 auto 15px auto; display: flex; justify-content: center; }
-                        #qrcode img { max-width: 120px; }
-                        .text-sm { font-size: 13px; text-align: left; line-height: 1.5; padding: 10px; border: 1px dashed #000; display: inline-block; min-width: 200px; }
-                        p { margin: 0; }
-                        @media print {
-                            @page { margin: 0; }
-                            body { padding: 5mm; }
+    // Polling en segundo plano para verificar alertas de mensajes nuevos
+    setInterval(() => {
+        fetch('/api/check-pendientes/')
+        .then(res => res.json())
+        .then(data => {
+            if(data.muestras) {
+                data.muestras.forEach(m => {
+                    const btn = document.getElementById('btn-chat-' + m.id);
+                    if(btn) {
+                        if(m.alerta_chat) {
+                            btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-red-500 text-white animate-pulse shadow-md";
+                        } else {
+                            btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-gray-100 text-gray-600 hover:bg-gray-200";
                         }
-                    </style>
-                </head>
-                <body onload="setTimeout(() => { window.print(); window.close(); }, 250)">
-                    ${contenido}
-                </body>
-            </html>
-        `);
-        ventanaImpresion.document.close();
+                    }
+                });
+            }
+        });
+    }, 3000);
+
+    function abrirModalChat(id) { 
+        document.getElementById('chat-modal-' + id).classList.replace('hidden', 'flex'); 
+        cargarMensajes(id);
+        marcarLeido(id); // Marca como leído automáticamente al abrir
+        chatIntervals[id] = setInterval(() => cargarMensajes(id), 2000); 
+    }
+
+    function cerrarModalChat(id) { 
+        document.getElementById('chat-modal-' + id).classList.replace('flex', 'hidden'); 
+        if(chatIntervals[id]) clearInterval(chatIntervals[id]);
+    }
+
+    function marcarLeido(id) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        const formData = new FormData();
+        formData.append('action', 'marcar_leido');
+        if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
+
+        fetch('/api/chat/' + id + '/', { method: 'POST', body: formData })
+        .then(() => {
+            const btn = document.getElementById('btn-chat-' + id);
+            if(btn) btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-gray-100 text-gray-600 hover:bg-gray-200";
+        });
+    }
+
+    function cargarMensajes(id) {
+        fetch('/api/chat/' + id + '/')
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('chat-box-' + id);
+            container.innerHTML = ''; 
+            
+            if(!data.mensajes || data.mensajes.length === 0) {
+                container.innerHTML = '<p class="text-center text-xs text-gray-400 italic">No hay mensajes.</p>';
+                return;
+            }
+            
+            data.mensajes.forEach(msg => {
+                const alignClass = msg.es_mio ? 'border-clinica ml-8' : 'border-gray-200 mr-8';
+                container.innerHTML += `
+                    <div class="bg-white p-3 rounded shadow-sm border text-sm ${alignClass}">
+                        <span class="font-bold text-xs text-gray-500 block mb-1">
+                            <i class="fa-solid fa-user-circle"></i> ${msg.usuario} - ${msg.fecha}
+                        </span>
+                        <p class="text-gray-800">${msg.texto}</p>
+                    </div>`;
+            });
+            container.scrollTop = container.scrollHeight; 
+        });
+    }
+
+    function enviarMensaje(event, id) {
+        event.preventDefault();
+        const input = document.getElementById('input-msg-' + id);
+        const mensaje = input.value;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        const formData = new FormData();
+        formData.append('mensaje', mensaje);
+        formData.append('csrfmiddlewaretoken', csrfToken);
+
+        fetch('/api/chat/' + id + '/', {
+            method: 'POST',
+            body: formData
+        }).then(() => {
+            input.value = '';
+            cargarMensajes(id);
+        });
     }
 </script>
 {% endblock %}

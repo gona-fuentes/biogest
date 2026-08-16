@@ -8,16 +8,16 @@
     <div>
         <div class="flex justify-between items-center mb-4">
             <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                <i class="fa-solid fa-inbox text-clinica"></i> Muestras Pendientes
+                <i class="fa-solid fa-inbox text-clinica"></i> Muestras Pendientes de Evaluación
             </h1>
             <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200">
-                {{ muestras_pendientes|length }} pendiente(s)
+                {{ muestras_pendientes|length }} disponible(s)
             </span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div id="contenedor-muestras" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for muestra in muestras_pendientes %}
-            <div class="bg-white rounded-lg shadow border-t-4 {% if muestra.resultado_critico %}border-critico{% else %}border-patologia{% endif %} p-5 flex flex-col justify-between">
+            <div class="muestra-card bg-white rounded-lg shadow border-t-4 {% if muestra.resultado_critico %}border-critico{% else %}border-patologia{% endif %} p-5 flex flex-col justify-between transition-all duration-500" data-id="{{ muestra.id }}">
                 <div>
                     <div class="flex justify-between items-start mb-2">
                         <h3 class="text-xl font-black text-gray-800">{{ muestra.numero_correlativo }}</h3>
@@ -34,7 +34,7 @@
                 </div>
                 
                 <div class="mt-4 pt-4 border-t border-gray-100 flex gap-2">
-                    <button onclick="abrirModalChat('chat-{{ muestra.id }}')" class="flex-1 text-center px-3 py-2 rounded text-xs font-bold border transition {% if muestra.alerta_chat_patologo %}bg-red-500 text-white border-red-600 animate-pulse shadow-md{% else %}bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100{% endif %}">
+                    <button id="btn-chat-{{ muestra.id }}" onclick="abrirModalChat('{{ muestra.id }}')" class="flex-1 text-center px-3 py-2 rounded text-xs font-bold border transition {% if muestra.alerta_chat_patologo %}bg-red-500 text-white border-red-600 animate-pulse shadow-md{% else %}bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100{% endif %}">
                         <i class="fa-regular fa-comment-dots"></i> {% if muestra.alerta_chat_patologo %}Nuevo Mensaje{% else %}Chat{% endif %}
                     </button>
                     
@@ -53,42 +53,23 @@
                 </div>
             </div>
 
-            <div id="chat-{{ muestra.id }}" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+            <div id="chat-modal-{{ muestra.id }}" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-lg shadow-xl max-w-lg w-full flex flex-col max-h-[80vh]">
                     <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
                         <h3 class="font-bold text-gray-800"><i class="fa-solid fa-comments text-patologia"></i> Chat: {{ muestra.numero_correlativo }}</h3>
-                        <div class="flex gap-2">
-                            {% if muestra.alerta_chat_patologo %}
-                            <form method="POST" action="{% url 'dashboard_patologo' %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="marcar_leido">
-                                <input type="hidden" name="examen_id" value="{{ muestra.id }}">
-                                <button type="submit" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300">Marcar Leído</button>
-                            </form>
-                            {% endif %}
-                            <button onclick="cerrarModalChat('chat-{{ muestra.id }}')" class="text-gray-500 hover:text-red-500 font-bold"><i class="fa-solid fa-xmark text-lg"></i></button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="marcarLeido('{{ muestra.id }}')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-2.5 py-1 rounded transition">
+                                <i class="fa-solid fa-check text-emerald-600 mr-1"></i> Marcar Leído
+                            </button>
+                            <button onclick="cerrarModalChat('{{ muestra.id }}')" class="text-gray-500 hover:text-red-500 font-bold ml-2"><i class="fa-solid fa-xmark text-lg"></i></button>
                         </div>
                     </div>
-                    <div class="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50">
-                        {% for msg in muestra.comentarios.all %}
-                            {% if msg.tipo == 'Mensaje / Consulta' %}
-                                <div class="bg-white p-3 rounded shadow-sm border text-sm {% if msg.user == request.user %}border-emerald-200 ml-8{% else %}border-gray-200 mr-8{% endif %}">
-                                    <span class="font-bold text-xs text-gray-500 block mb-1">
-                                        <i class="fa-solid fa-user-circle"></i> {{ msg.user.username }} - {{ msg.created_at|date:"d/m H:i" }}
-                                    </span>
-                                    <p class="text-gray-800">{{ msg.comentario }}</p>
-                                </div>
-                            {% endif %}
-                        {% empty %}
-                            <p class="text-center text-xs text-gray-400 italic">No hay mensajes.</p>
-                        {% endfor %}
-                    </div>
+                    <div id="chat-box-{{ muestra.id }}" class="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50">
+                        </div>
                     <div class="p-4 border-t bg-white rounded-b-lg">
-                        <form method="POST" action="{% url 'dashboard_patologo' %}" class="flex gap-2">
+                        <form onsubmit="enviarMensaje(event, '{{ muestra.id }}')" class="flex gap-2">
                             {% csrf_token %}
-                            <input type="hidden" name="action" value="enviar_chat">
-                            <input type="hidden" name="examen_id" value="{{ muestra.id }}">
-                            <input type="text" name="mensaje" required placeholder="Responder al laboratorio..." class="w-full text-sm px-3 py-2 border rounded focus:ring-patologia">
+                            <input type="text" id="input-msg-{{ muestra.id }}" required placeholder="Responder al laboratorio..." class="w-full text-sm px-3 py-2 border rounded focus:ring-patologia focus:outline-none">
                             <button type="submit" class="bg-clinica hover:bg-gray-900 text-white font-bold px-4 py-2 rounded text-sm"><i class="fa-solid fa-paper-plane"></i></button>
                         </form>
                     </div>
@@ -97,7 +78,7 @@
             {% empty %}
             <div class="col-span-3 bg-white p-8 rounded-lg text-center text-gray-500 border border-gray-200">
                 <i class="fa-solid fa-mug-hot text-4xl mb-3 text-gray-300"></i>
-                <p>No hay muestras pendientes en la bandeja de evaluación.</p>
+                <p>No hay muestras pendientes o no asignadas en tu bandeja.</p>
             </div>
             {% endfor %}
         </div>
@@ -174,7 +155,122 @@
 </div>
 
 <script>
-    function abrirModalChat(id) { document.getElementById(id).classList.replace('hidden', 'flex'); }
-    function cerrarModalChat(id) { document.getElementById(id).classList.replace('flex', 'hidden'); }
+    // POLLING CADA 3 SEG: detecta si se tomaron biopsias, si ingresaron NUEVAS o si hay chats pendientes
+    setInterval(() => {
+        fetch('/api/check-pendientes/')
+        .then(res => res.json())
+        .then(data => {
+            if(data.muestras) {
+                const incomingIds = data.muestras.map(m => m.id);
+                const existingCards = Array.from(document.querySelectorAll('.muestra-card'));
+                const existingIds = existingCards.map(card => parseInt(card.getAttribute('data-id')));
+
+                // 1. Detección de Muestra Nueva ingresada por el laboratorio -> Recarga suave la página
+                if (incomingIds.some(id => !existingIds.includes(id))) {
+                    window.location.reload();
+                    return;
+                }
+
+                // 2. Detección de Muestra Asignada a otro patólogo -> Desvanece la tarjeta de la pantalla
+                existingCards.forEach(card => {
+                    const id = parseInt(card.getAttribute('data-id'));
+                    if(!incomingIds.includes(id)) {
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.9)';
+                        setTimeout(() => card.remove(), 500);
+                    }
+                });
+
+                // 3. Actualización en tiempo real de la alerta del botón de Chat
+                data.muestras.forEach(m => {
+                    const btn = document.getElementById('btn-chat-' + m.id);
+                    if(btn) {
+                        if(m.alerta_chat) {
+                            btn.className = "flex-1 text-center px-3 py-2 rounded text-xs font-bold border transition bg-red-500 text-white border-red-600 animate-pulse shadow-md";
+                            btn.innerHTML = `<i class="fa-regular fa-comment-dots"></i> Nuevo Mensaje`;
+                        } else {
+                            btn.className = "flex-1 text-center px-3 py-2 rounded text-xs font-bold border transition bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100";
+                            btn.innerHTML = `<i class="fa-regular fa-comment-dots"></i> Chat`;
+                        }
+                    }
+                });
+            }
+        });
+    }, 3000);
+
+    let chatIntervals = {};
+
+    function abrirModalChat(id) { 
+        document.getElementById('chat-modal-' + id).classList.replace('hidden', 'flex'); 
+        cargarMensajes(id);
+        marcarLeido(id); // Desactiva la alerta en BD al abrir
+        chatIntervals[id] = setInterval(() => cargarMensajes(id), 2000); 
+    }
+
+    function cerrarModalChat(id) { 
+        document.getElementById('chat-modal-' + id).classList.replace('flex', 'hidden'); 
+        if(chatIntervals[id]) clearInterval(chatIntervals[id]);
+    }
+
+    function marcarLeido(id) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        const formData = new FormData();
+        formData.append('action', 'marcar_leido');
+        if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
+
+        fetch('/api/chat/' + id + '/', { method: 'POST', body: formData })
+        .then(() => {
+            const btn = document.getElementById('btn-chat-' + id);
+            if(btn) {
+                btn.className = "flex-1 text-center px-3 py-2 rounded text-xs font-bold border transition bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100";
+                btn.innerHTML = `<i class="fa-regular fa-comment-dots"></i> Chat`;
+            }
+        });
+    }
+
+    function cargarMensajes(id) {
+        fetch('/api/chat/' + id + '/')
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('chat-box-' + id);
+            container.innerHTML = ''; 
+            
+            if(!data.mensajes || data.mensajes.length === 0) {
+                container.innerHTML = '<p class="text-center text-xs text-gray-400 italic">No hay mensajes.</p>';
+                return;
+            }
+            
+            data.mensajes.forEach(msg => {
+                const alignClass = msg.es_mio ? 'border-emerald-200 ml-8' : 'border-gray-200 mr-8';
+                container.innerHTML += `
+                    <div class="bg-white p-3 rounded shadow-sm border text-sm ${alignClass}">
+                        <span class="font-bold text-xs text-gray-500 block mb-1">
+                            <i class="fa-solid fa-user-circle"></i> ${msg.usuario} - ${msg.fecha}
+                        </span>
+                        <p class="text-gray-800">${msg.texto}</p>
+                    </div>`;
+            });
+            container.scrollTop = container.scrollHeight; 
+        });
+    }
+
+    function enviarMensaje(event, id) {
+        event.preventDefault();
+        const input = document.getElementById('input-msg-' + id);
+        const mensaje = input.value;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        const formData = new FormData();
+        formData.append('mensaje', mensaje);
+        formData.append('csrfmiddlewaretoken', csrfToken);
+
+        fetch('/api/chat/' + id + '/', {
+            method: 'POST',
+            body: formData
+        }).then(() => {
+            input.value = '';
+            cargarMensajes(id);
+        });
+    }
 </script>
 {% endblock %}
