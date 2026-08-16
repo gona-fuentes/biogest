@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Mi Perfil y Firma Digital - Biogest{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
+            <i class="fa-solid fa-user-doctor text-clinica"></i> Configuración de Perfil Profesional
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">Administre sus datos personales, registro médico y firma digitalizada.</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md border-t-4 border-patologia overflow-hidden">
+        <form method="POST" enctype="multipart/form-data" class="p-6 md:p-8">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                <div class="space-y-5">
+                    <h3 class="text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-address-card text-gray-400"></i> Información General
+                    </h3>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.first_name.label }}</label>
+                        {{ form.first_name }}
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.last_name.label }}</label>
+                        {{ form.last_name }}
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.email.label }}</label>
+                        {{ form.email }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">N° Registro Médico (RNS)</label>
+                        {{ form.registro_medico }}
+                        <p class="text-[11px] text-gray-500 mt-1"><i class="fa-solid fa-circle-info"></i> Este número aparecerá bajo su firma en el PDF oficial.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-5">
+                    <h3 class="text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-gray-400"></i> Firma Digital y Seguridad
+                    </h3>
+
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-center justify-center min-h-[120px]">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Firma Digital Actual</span>
+                        {% if user.firma %}
+                            <img src="{{ user.firma.url }}" alt="Firma Registrada" class="max-h-20 object-contain drop-shadow-sm bg-white p-2 rounded">
+                        {% else %}
+                            <div class="text-gray-400 flex flex-col items-center">
+                                <i class="fa-solid fa-signature text-3xl mb-2 opacity-50"></i>
+                                <span class="text-xs italic">No hay firma configurada</span>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Actualizar Imagen de Firma</label>
+                        {{ form.firma }}
+                        <p class="text-[11px] text-gray-500 mt-1">Se recomienda una imagen PNG con fondo transparente.</p>
+                    </div>
+
+                    <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-100 mt-4">
+                        <label class="block text-xs font-bold text-emerald-800 uppercase mb-1">PIN de Seguridad (4-6 dígitos)</label>
+                        {{ form.pin_firma }}
+                        <p class="text-[11px] text-emerald-700 mt-1 leading-relaxed">
+                            <i class="fa-solid fa-lock text-emerald-600"></i> Código numérico requerido para estampar la firma y bloquear el informe diagnóstico.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {% if form.errors %}
+                <div class="mt-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+                    <p class="text-sm text-red-700 font-bold">Por favor, corrija los siguientes errores:</p>
+                    <ul class="list-disc list-inside text-xs text-red-600 mt-1 ml-4">
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <div class="mt-8 pt-5 border-t border-gray-100 flex justify-end">
+                <button type="submit" class="bg-clinica hover:bg-gray-900 text-white font-bold py-2.5 px-6 rounded-md transition shadow-md flex items-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar Configuración
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

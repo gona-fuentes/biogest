@@ -2,119 +2,183 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Generando Informe...</title>
+    <title>Informe Histopatológico - {{ muestra.numero_correlativo }}</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
         body { 
-            font-family: Arial, Helvetica, sans-serif; 
-            font-size: 14px; 
-            color: #333;
-            background-color: #f9fafb; /* Fondo gris para la web */
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            font-size: 13px; 
+            color: #1f2937;
+            background-color: #f3f4f6; 
+            margin: 0;
+            padding: 0;
         }
-        /* Contenedor blanco que simula la hoja tamaño Carta */
         #informe-contenido {
             background-color: white;
             width: 21cm;
             min-height: 27cm;
             margin: 20px auto;
             padding: 2cm;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            display: flex;
+            flex-col: column;
+            justify-content: space-between;
         }
-        .header { text-align: center; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px; margin-bottom: 30px; }
-        .title { font-size: 22px; font-weight: bold; color: #1f2937; }
-        .subtitle { font-size: 13px; color: #6b7280; margin-top: 5px;}
-        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        .info-table th { text-align: left; background-color: #f3f4f6; padding: 10px; border: 1px solid #e5e7eb; width: 25%; font-size: 12px;}
-        .info-table td { padding: 10px; border: 1px solid #e5e7eb; width: 25%; font-size: 13px;}
-        .diagnostic-box { border: 2px solid #f59e0b; padding: 20px; background-color: #fffbeb; border-radius: 5px; min-height: 200px; }
-        .firma { text-align: right; margin-top: 60px; }
-        .footer { text-align: center; margin-top: 40px; font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+        .header { 
+            text-align: center; 
+            border-bottom: 3px double #064e3b; 
+            padding-bottom: 12px; 
+            margin-bottom: 25px; 
+        }
+        .title { font-size: 20px; font-weight: bold; color: #064e3b; text-transform: uppercase; letter-spacing: 1px; }
+        .subtitle { font-size: 12px; color: #4b5563; margin-top: 4px; }
         
-        /* Mensaje de carga */
-        #loading-msg { text-align: center; padding: 20px; font-weight: bold; color: #0ea5e9; }
+        .section-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #064e3b;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 3px;
+            margin-bottom: 10px;
+        }
+        .grid-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 25px;
+            background-color: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #f3f4f6;
+        }
+        .grid-info p { margin: 3px 0; }
+        .diagnostic-box {
+            border: 1px solid #10b981;
+            background-color: #f0fdf4;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1.5;
+            min-height: 200px;
+        }
+        .critical-badge {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #f87171;
+            font-weight: bold;
+            padding: 6px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 15px;
+            font-size: 11px;
+        }
+        .footer-legal {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 2px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .loading-bar {
+            text-align: center;
+            padding: 15px;
+            background-color: #064e3b;
+            color: white;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
-    <div id="loading-msg">Preparando su PDF para descargar, por favor espere...</div>
+    <div class="loading-bar" id="loading-msg">
+        ⏳ Generando informe médico en PDF... Por favor espere.
+    </div>
 
     <div id="informe-contenido">
-        
-        <div class="header">
-            <div class="title">🔬 BIOGEST</div>
-            <div class="subtitle">INFORME OFICIAL DE ANATOMÍA PATOLÓGICA</div>
-            <div class="subtitle">{{ muestra.laboratorio.nombre }}</div>
-        </div>
+        <div>
+            <div class="header">
+                <div class="title">Servicio de Anatomía Patológica</div>
+                <div class="subtitle">{{ muestra.laboratorio.nombre|default:"Biogest Red de Salud" }}</div>
+                <div style="font-size: 10px; color: #6b7280; margin-top: 2px;">INFORME DIAGNÓSTICO HISTOPATOLÓGICO</div>
+            </div>
 
-        <table class="info-table">
-            <tr>
-                <th>CÓDIGO MUESTRA:</th>
-                <td><strong>{{ muestra.numero_correlativo }}</strong></td>
-                <th>FECHA RECEPCIÓN:</th>
-                <td>{{ muestra.fecha_recepcion|date:"d/m/Y" }}</td>
-            </tr>
-            <tr>
-                <th>PACIENTE:</th>
-                <td>{{ muestra.paciente_nombre }}</td>
-                <th>RUT:</th>
-                <td>{{ muestra.paciente_rut }}</td>
-            </tr>
-            <tr>
-                <th>MÉD. SOLICITANTE:</th>
-                <td>{{ muestra.medico_solicitante.nombre|default:"No especificado" }}</td>
-                <th>TIPO EXAMEN:</th>
-                <td>{{ muestra.tipo_examen.nombre }}</td>
-            </tr>
-            <tr>
-                <th>MUESTRAS:</th>
-                <td>{{ muestra.cantidad_muestras }} frascos</td>
-                <th>FRAGMENTOS:</th>
-                <td>{{ muestra.numero_fragmentos }}</td>
-            </tr>
-        </table>
-
-        <h3 style="color: #1f2937; border-bottom: 1px solid #eee; padding-bottom: 5px;">Diagnóstico Médico Final</h3>
-        <div class="diagnostic-box">
-            {% if diagnostico %}
-                <p style="white-space: pre-wrap; line-height: 1.6;">{{ diagnostico.comentario }}</p>
-                
-                <div class="firma">
-                    <p>_____________________________________</p>
-                    <p><strong>Dr/a. {{ diagnostico.user.username }}</strong><br>
-                    Médico Patólogo<br>
-                    <em>Fecha de emisión: {{ diagnostico.created_at|date:"d/m/Y H:i" }}</em></p>
+            <div class="section-title">Información del Paciente y Muestra</div>
+            <div class="grid-info">
+                <div>
+                    <p><strong>N° Muestra:</strong> {{ muestra.numero_correlativo }}</p>
+                    <p><strong>Paciente:</strong> {{ muestra.paciente.nombre_completo }}</p>
+                    <p><strong>RUT:</strong> {{ muestra.paciente.rut }}</p>
+                    <p><strong>Fecha Nacimiento:</strong> {{ muestra.paciente.fecha_nacimiento|date:"d/m/Y"|default:"-" }}</p>
                 </div>
+                <div>
+                    <p><strong>Tipo de Examen:</strong> {{ muestra.tipo_examen.nombre }}</p>
+                    <p><strong>Médico Solicitante:</strong> {{ muestra.medico_solicitante.nombre|default:"-" }}</p>
+                    <p><strong>Fecha Recepción:</strong> {{ muestra.fecha_recepcion|date:"d/m/Y" }}</p>
+                    <p><strong>Fecha Emisión:</strong> {{ muestra.fecha_entrega|date:"d/m/Y"|default:muestra.updated_at|date:"d/m/Y" }}</p>
+                </div>
+            </div>
+
+            {% if muestra.resultado_critico %}
+            <div class="critical-badge">
+                ⚠️ ALERTA MÉDICA: HALLAZGO DE RESULTADO CRÍTICO / URGENTE
+            </div>
+            {% endif %}
+
+            <div class="section-title">Análisis Histopatológico y Diagnóstico</div>
+            {% if diagnostico %}
+                <div class="diagnostic-box">{{ diagnostico.comentario }}</div>
             {% else %}
-                <p style="color: #dc2626; text-align: center;"><strong>El diagnóstico final aún no ha sido emitido.</strong></p>
+                <div class="diagnostic-box" style="border-color: #e5e7eb; background-color: #f9fafb;">
+                    No se ha registrado texto diagnóstico final.
+                </div>
             {% endif %}
         </div>
 
-        <div class="footer">
-            Documento generado y firmado digitalmente por el Sistema de Trazabilidad Biogest.
+        <div class="footer-legal">
+            <div style="font-size: 8px; color: #6b7280; font-family: monospace; max-width: 300px;">
+                <p style="margin: 0 0 2px 0; font-weight: bold; color: #111827;">DOCUMENTO OFICIAL FIRMADO DIGITALMENTE</p>
+                <p style="margin: 0 0 2px 0; word-break: break-all;">HASH: {{ hash_verificacion }}</p>
+                <p style="margin: 0;">Certificado por Sistema de Trazabilidad Biogest conforme a normativa vigente.</p>
+            </div>
+
+            <div style="text-align: center; min-width: 220px;">
+                {% if muestra.patologo and muestra.patologo.firma %}
+                    <img src="{{ muestra.patologo.firma.url }}" alt="Firma Patólogo" style="max-height: 65px; margin: 0 auto 4px auto; display: block;" />
+                {% else %}
+                    <div style="height: 50px;"></div>
+                {% endif %}
+                <p style="margin: 0; font-size: 11px; font-weight: bold; border-top: 1px solid #111827; padding-top: 2px;">
+                    Dr(a). {{ muestra.patologo.get_full_name|default:muestra.patologo.username }}
+                </p>
+                <p style="margin: 0; font-size: 9px; color: #4b5563;">
+                    RNS: {{ muestra.patologo.registro_medico|default:"Médico Patólogo / Histopatólogo" }}
+                </p>
+            </div>
         </div>
     </div>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             const elemento = document.getElementById('informe-contenido');
-            
-            // Opciones de configuración del PDF
             const opciones = {
-                margin:       [0, 0, 0, 0], // Márgenes los maneja el CSS del elemento
+                margin:       [0, 0, 0, 0],
                 filename:     'Informe_Biopsia_{{ muestra.numero_correlativo }}.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true }, // Mayor resolución
+                html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'cm', format: 'letter', orientation: 'portrait' }
             };
 
-            // Convertir y descargar
             html2pdf().set(opciones).from(elemento).save().then(function() {
-                // Al terminar de descargar, cambiamos el mensaje
-                document.getElementById('loading-msg').innerText = "✅ Descarga completada. Ya puede cerrar esta pestaña.";
+                document.getElementById('loading-msg').innerHTML = "✅ Descarga completada con éxito. Puede cerrar esta pestaña.";
+                document.getElementById('loading-msg').style.backgroundColor = "#10b981";
             });
         });
     </script>
-
 </body>
 </html>

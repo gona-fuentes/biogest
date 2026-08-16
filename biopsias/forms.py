@@ -1,5 +1,8 @@
 from django import forms
-from .models import Examen, Paciente
+from django.contrib.auth import get_user_model
+from .models import Examen, Paciente, PlantillaPatologo, TipoExamen
+from usuarios.models import Laboratorio
+User = get_user_model()
 
 class ExamenForm(forms.ModelForm):
     # --- Campos para la Ficha Clínica del Paciente ---
@@ -30,4 +33,44 @@ class ExamenForm(forms.ModelForm):
             'laboratorio': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
             'cantidad_muestras': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
             'numero_fragmentos': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica'}),
+        }
+
+# Formulario para Firma y Perfil de Patólogo
+class PerfilPatologoForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'registro_medico', 'firma', 'pin_firma']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}),
+            'last_name': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}),
+            'email': forms.EmailInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}),
+            'registro_medico': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica', 'placeholder': 'Ej: 123456-MINSAL'}),
+            'pin_firma': forms.PasswordInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica', 'placeholder': '****', 'maxlength': '6'}),
+        }
+
+# Formulario para Plantillas Personales
+class PlantillaPatologoForm(forms.ModelForm):
+    class Meta:
+        model = PlantillaPatologo
+        fields = ['tipo_examen', 'titulo', 'texto_predefinido']
+        widgets = {
+            'tipo_examen': forms.Select(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}),
+            'titulo': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica', 'placeholder': 'Ej: Biopsia Piel - Nevus Melanocítico'}),
+            'texto_predefinido': forms.Textarea(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica font-mono', 'rows': 6}),
+        }
+
+# Formulario Rápido de Creación de Usuarios por Admin
+class CrearUsuarioAdminForm(forms.ModelForm):
+    rol = forms.ChoiceField(choices=[('Laboratorio', 'Clínico / Laboratorio'), ('Patólogo', 'Patólogo')], widget=forms.Select(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}))
+
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'laboratorio', 'password']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}),
+            'first_name': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}),
+            'last_name': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}),
+            'email': forms.EmailInput(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}),
+            'laboratorio': forms.Select(attrs={'class': 'w-full px-3 py-2 border rounded focus:ring-clinica'}),
         }

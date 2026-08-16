@@ -92,3 +92,22 @@ class Comentario(models.Model):
 
     def __str__(self):
         return f"Comentario de {self.user} en {self.examen}"
+
+
+class PlantillaPatologo(models.Model):
+    patologo = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='plantillas_personales'
+    )
+    tipo_examen = models.ForeignKey(TipoExamen, on_delete=models.CASCADE, related_name='plantillas_patologo')
+    titulo = models.CharField(max_length=150, help_text="Ej: Gastritis Crónica Antral Leve")
+    texto_predefinido = models.TextField(help_text="Texto diagnóstico que se inyectará en el informe")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Plantilla Personal de Patólogo"
+        verbose_name_plural = "Plantillas Personales de Patólogos"
+
+    def __str__(self):
+        return f"{self.patologo.username} - {self.tipo_examen.nombre}: {self.titulo}"

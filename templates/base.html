@@ -16,8 +16,8 @@
                     colors: {
                         clinica: '#064e3b',    // Verde oscuro esmeralda
                         patologia: '#10b981',  // Verde esmeralda brillante
-                        darkbg: '#111827',     // Gris casi negro
-                        critico: '#ef4444',    // Rojo alerta
+                        darkbg: '#111827',     // Fondo oscuro degradado
+                        critico: '#ef4444',    // Rojo de alerta médica
                     }
                 }
             }
@@ -40,6 +40,15 @@
                 </button>
             </div>
 
+            {% if user.is_authenticated %}
+            <div class="px-4 py-2 bg-black/30 rounded-lg mx-3 my-3 flex items-center justify-between text-xs">
+                <span class="text-gray-300 font-semibold"><i class="fa-solid fa-user-shield text-patologia mr-1"></i> Ocultar RUT</span>
+                <button onclick="toggleModoPrivacidad()" id="btn-privacidad" class="text-gray-400 hover:text-white transition focus:outline-none">
+                    <i class="fa-solid fa-eye-slash text-base"></i>
+                </button>
+            </div>
+            {% endif %}
+
             <nav class="p-4 space-y-1.5 text-sm font-medium">
                 {% if user.is_authenticated %}
                     {% with group_names=user.groups.all|join:"," %}
@@ -59,6 +68,12 @@
                     <a href="{% url 'dashboard_patologo' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
                         <i class="fa-solid fa-user-md w-5 text-patologia"></i> Bandeja Patología
                     </a>
+                    <a href="{% url 'mis_plantillas' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
+                        <i class="fa-solid fa-file-lines w-5 text-patologia"></i> Preinformes Personales
+                    </a>
+                    <a href="{% url 'mi_perfil' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
+                        <i class="fa-solid fa-signature w-5 text-patologia"></i> Mi Firma Digital
+                    </a>
                     {% endif %}
 
                     <a href="{% url 'lista_pacientes' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
@@ -72,8 +87,11 @@
                     </a>
 
                     {% if user.is_superuser %}
+                    <a href="{% url 'admin_gestion_rapida' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
+                        <i class="fa-solid fa-users-gear w-5 text-patologia"></i> Crear Usuarios / Labs
+                    </a>
                     <a href="/admin/" target="_blank" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-emerald-900/60 transition text-gray-200 hover:text-white">
-                        <i class="fa-solid fa-sliders w-5 text-patologia"></i> Administrador
+                        <i class="fa-solid fa-sliders w-5 text-patologia"></i> Django Admin
                     </a>
                     {% endif %}
 
@@ -81,7 +99,7 @@
                 {% else %}
                     <div class="p-6 text-center text-xs text-emerald-300/60 space-y-2">
                         <i class="fa-solid fa-user-lock text-3xl block text-emerald-500/50"></i>
-                        <p>Ingrese sus credenciales para acceder a los módulos de trazabilidad.</p>
+                        <p>Ingrese credenciales autorizadas para operar.</p>
                     </div>
                 {% endif %}
             </nav>
@@ -97,7 +115,7 @@
                     <div class="truncate">
                         <p class="text-xs font-bold text-white truncate">{{ user.username }}</p>
                         <p class="text-[10px] text-emerald-400 truncate">
-                            {% if user.is_superuser %}Admin{% else %}Usuario Activo{% endif %}
+                            {% if user.is_superuser %}Administrador{% else %}Usuario Activo{% endif %}
                         </p>
                     </div>
                 </div>
@@ -114,23 +132,58 @@
 
     <div class="flex-1 flex flex-col min-w-0">
         <header class="lg:hidden bg-clinica text-white p-4 flex justify-between items-center shadow-md">
-            <button onclick="toggleSidebar()" class="text-xl">
-                <i class="fa-solid fa-bars"></i>
-            </button>
+            <button onclick="toggleSidebar()" class="text-xl"><i class="fa-solid fa-bars"></i></button>
             <span class="font-bold tracking-wider">BIOGEST</span>
             <div></div>
         </header>
 
         <main class="flex-grow p-4 lg:p-8 overflow-y-auto">
+            {% if messages %}
+                <div class="space-y-2 mb-6 max-w-5xl mx-auto">
+                    {% for message in messages %}
+                        <div class="p-4 rounded-lg shadow-sm text-sm font-semibold flex items-center gap-3 {% if message.tags == 'error' %}bg-red-100 text-red-800 border border-red-200{% else %}bg-emerald-100 text-emerald-800 border border-emerald-200{% endif %}">
+                            <i class="fa-solid {% if message.tags == 'error' %}fa-circle-exclamation text-red-600{% else %}fa-circle-check text-emerald-600{% endif %} text-lg"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
             {% block content %}{% endblock %}
         </main>
     </div>
 
     <script>
         function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('-translate-x-full');
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
         }
+
+        function toggleModoPrivacidad() {
+            document.body.classList.toggle('modo-privado');
+            const activo = document.body.classList.contains('modo-privado');
+            localStorage.setItem('modo_privado', activo ? '1' : '0');
+            aplicarPrivacidad();
+        }
+
+        function aplicarPrivacidad() {
+            const activo = localStorage.getItem('modo_privado') === '1';
+            if (activo) document.body.classList.add('modo-privado');
+            else document.body.classList.remove('modo-privado');
+            
+            document.querySelectorAll('.rut-paciente').forEach(el => {
+                if (!el.dataset.original) el.dataset.original = el.innerText;
+                if (activo) {
+                    let rut = el.dataset.original.trim();
+                    if (rut.length > 5) {
+                        el.innerText = rut.substring(0, 4) + '.***.***-*';
+                    }
+                } else {
+                    el.innerText = el.dataset.original;
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', aplicarPrivacidad);
     </script>
 </body>
 </html>
