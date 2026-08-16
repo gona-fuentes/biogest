@@ -99,7 +99,7 @@
             </div>
 
             {% if form.errors %}
-                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-md mt-4">
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
                     <p class="text-sm text-red-700 font-bold">Revise los siguientes errores:</p>
                     {{ form.errors }}
                 </div>
@@ -115,46 +115,55 @@
 </div>
 
 <script>
-    // 1. Función modular pura: Solo recibe un texto y devuelve un RUT formateado
-    function formatearRUT(rut) {
-        // Limpia cualquier carácter que no sea número o 'K'
-        let valor = rut.replace(/[^0-9kK]/g, '').toUpperCase();
-        if (valor.length === 0) return '';
-
-        // Separa el cuerpo del dígito verificador
-        let cuerpo = valor.slice(0, -1);
-        let dv = valor.slice(-1);
-
-        if (valor.length < 2) return valor;
-
-        // Expresión regular para poner puntos cada 3 números
-        cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-
-        return `${cuerpo}-${dv}`;
-    }
-
-    // 2. Controladores de Eventos (Event Listeners)
     document.addEventListener("DOMContentLoaded", function() {
         const rutInput = document.getElementById('id_rut');
         const statusSpan = document.getElementById('rut-status');
 
         if (rutInput) {
-            // A. Evento 'input': Formatea visualmente mientras el usuario teclea
+            // Función para formatear el RUT dinámicamente (XX.XXX.XXX-X)
+            function formatRUT(value) {
+                // Remover todo lo que no sea número o la letra K/k
+                let cleanValue = value.replace(/[^0-9kK]/g, '').toUpperCase();
+                
+                if (cleanValue.length === 0) return "";
+
+                let cuerpo = cleanValue.slice(0, -1);
+                let dv = cleanValue.slice(-1);
+
+                if (cuerpo.length === 0) {
+                    return dv;
+                }
+
+                // Aplicar puntos de miles al cuerpo
+                let formattedCuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                
+                return `${formattedCuerpo}-${dv}`;
+            }
+
+            // Evento mientras el usuario escribe
             rutInput.addEventListener('input', function(e) {
-                this.value = formatearRUT(this.value);
+                let cursorPosition = this.selectionStart;
+                let oldLength = this.value.length;
+                
+                this.value = formatRUT(this.value);
+                
+                // Ajustar la posición del cursor de forma amigable
+                let newLength = this.value.length;
+                cursorPosition += (newLength - oldLength);
+                this.setSelectionRange(cursorPosition, cursorPosition);
             });
 
-            // B. Evento 'blur': Llama a la API cuando el usuario quita el foco del campo
+            // Evento al perder el foco (blur) para buscar en la API
             rutInput.addEventListener('blur', function() {
-                // Al hacer el fetch, enviamos el RUT limpio (sin puntos ni guiones) 
-                // para que la URL no se rompa o confunda a la base de datos
-                const rutLimpio = this.value.replace(/[^0-9K]/ig, '');
+                const rut = this.value.trim();
                 
-                if (rutLimpio.length > 5) {
-                    fetch(`/biopsias/api/paciente/${rutLimpio}/`)
+                if (rut.length > 5) {
+                    // Llamada a la API con la nueva estructura de URLs
+                    fetch(`/biopsias/api/paciente/${rut}/`)
                         .then(response => response.json())
                         .then(data => {
                             if (data.encontrado) {
+                                // Rellenar campos
                                 document.getElementById('id_nombre_completo').value = data.nombre_completo || '';
                                 document.getElementById('id_email').value = data.email || '';
                                 document.getElementById('id_telefono').value = data.telefono || '';
@@ -164,9 +173,11 @@
                                     document.getElementById('id_fecha_nacimiento').value = data.fecha_nacimiento;
                                 }
 
+                                // Mostrar mensaje visual de éxito
                                 statusSpan.classList.remove('hidden');
                                 rutInput.classList.add('border-emerald-500', 'bg-emerald-50');
                             } else {
+                                // Ocultar mensaje si no existe o se cambió de RUT
                                 statusSpan.classList.add('hidden');
                                 rutInput.classList.remove('border-emerald-500', 'bg-emerald-50');
                             }

@@ -69,42 +69,67 @@ def dashboard_laboratorio(request):
     return render(request, 'biopsias/dashboard.html', {'muestras': muestras, 'query': query})
 
 @login_required
-@user_passes_test(es_laboratorio, login_url='/usuarios/login/')
+@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def registrar_biopsia(request):
+    """
+    Registra una nueva biopsia buscando si el paciente ya existe por su RUT
+    para evitar duplicidades y autocompletar, registrando el inicio en la cadena de custodia.
+    """
     if request.method == 'POST':
         form = ExamenForm(request.POST)
         if form.is_valid():
-            rut = form.cleaned_data['rut']
+            rut = form.cleaned_data.get('rut')
+            nombre_completo = form.cleaned_data.get('nombre_completo')
+            fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
+            sexo = form.cleaned_data.get('sexo')
+            telefono = form.cleaned_data.get('telefono')
+            email = form.cleaned_data.get('email')
+
+            # 1. Buscar o crear el paciente de forma única por RUT (Evita duplicados)
             paciente, created = Paciente.objects.get_or_create(
                 rut=rut,
                 defaults={
-                    'nombre_completo': form.cleaned_data['nombre_completo'],
-                    'fecha_nacimiento': form.cleaned_data.get('fecha_nacimiento'),
-                    'sexo': form.cleaned_data.get('sexo'),
-                    'telefono': form.cleaned_data.get('telefono'),
-                    'email': form.cleaned_data.get('email'),
+                    'nombre_completo': nombre_completo,
+                    'fecha_nacimiento': fecha_nacimiento,
+                    'sexo': sexo,
+                    'telefono': telefono,
+                    'email': email
                 }
             )
             
+            # Si el paciente ya existía, actualizamos datos si el usuario modificó algo en el form
             if not created:
-                paciente.nombre_completo = form.cleaned_data['nombre_completo']
-                if form.cleaned_data.get('telefono'): paciente.telefono = form.cleaned_data['telefono']
-                if form.cleaned_data.get('email'): paciente.email = form.cleaned_data['email']
-                if form.cleaned_data.get('sexo'): paciente.sexo = form.cleaned_data['sexo']
-                if form.cleaned_data.get('fecha_nacimiento'): paciente.fecha_nacimiento = form.cleaned_data['fecha_nacimiento']
+                paciente.nombre_completo = nombre_completo
+                if fecha_nacimiento: paciente.fecha_nacimiento = fecha_nacimiento
+                if sexo: paciente.sexo = sexo
+                if telefono: paciente.telefono = telefono
+                if email: paciente.email = email
                 paciente.save()
 
-            nueva_muestra = form.save(commit=False)
-            nueva_muestra.paciente = paciente
-            codigo_unico = uuid.uuid4().hex[:6].upper()
-            nueva_muestra.numero_correlativo = f"BIO-{codigo_unico}"
-            nueva_muestra.estado = 'Ingresada'
-            nueva_muestra.save()
-            
+            # 2. Generar correlativo único para la muestra
+            correlativo = f"BIO-{uuid.uuid4().hex[:6].upper()}"
+            while Examen.objects.filter(numero_correlativo=correlativo).exists():
+                correlativo = f"BIO-{uuid.uuid4().hex[:6].upper()}"
+
+            examen = form.save(commit=False)
+            examen.paciente = paciente
+            examen.numero_correlativo = correlativo
+            examen.estado = 'Ingresada'
+            examen.save()
+
+            # 3. REGISTRAR EN CADENA DE CUSTODIA (Punto de partida obligatorio)
+            Comentario.objects.create(
+                examen=examen,
+                user=request.user,
+                comentario=f"Se ha ingresado la nueva muestra con código correlativo {correlativo}.",
+                tipo='Creación / Ingreso'
+            )
+
+            messages.success(request, f"Biopsia {correlativo} registrada e ingresada al sistema con éxito.")
             return redirect('dashboard')
     else:
         form = ExamenForm()
-        
+    
     return render(request, 'biopsias/nueva_biopsia.html', {'form': form})
 
 
@@ -172,29 +197,55 @@ def asignar_patologo(request, examen_id):
 # --- DETALLE Y EVALUACIÓN ---
 @login_required
 def detalle_muestra(request, examen_id):
+    """
+    Gestiona el detalle, la cadena de custodia completa y la acción de
+    reapertura por parte del administrador informando el motivo.
+    """
     muestra = get_object_or_404(Examen, id=examen_id)
     comentarios = muestra.comentarios.all().order_by('-created_at')
     
-    es_patologo_user = request.user.groups.filter(name='Patólogo').exists()
+    es_patologo_user = request.user.groups.filter(name='Patólogo').exists() or request.user.is_superuser
     
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        if action == 'agregar_comentario':
+        # ACCIÓN 1: Reabrir informe bloqueado (Exclusivo Administrador con motivo)
+        if action == 'reabrir_informe' and request.user.is_superuser:
+            motivo = request.POST.get('motivo_apertura', '').strip()
+            if motivo:
+                muestra.informe_cerrado = False
+                muestra.estado = 'En Evaluación'
+                muestra.save()
+                
+                # Registrar obligatoriamente en la cadena de custodia
+                Comentario.objects.create(
+                    examen=muestra,
+                    user=request.user,
+                    comentario=f"INFORME REABIERTO POR ADMINISTRACIÓN.\nMotivo registrado: {motivo}",
+                    tipo='Apertura Admin'
+                )
+                messages.success(request, "Informe desbloqueado y reabierto exitosamente. Registrado en cronología.")
+            else:
+                messages.error(request, "Debe ingresar obligatoriamente un motivo para reabrir el informe.")
+            return redirect('detalle_muestra', examen_id=muestra.id)
+
+        # ACCIÓN 2: Agregar comentarios / mensajes internos
+        elif action == 'agregar_comentario':
             texto = request.POST.get('comentario')
             if texto:
                 Comentario.objects.create(
                     examen=muestra,
                     user=request.user,
                     comentario=texto,
-                    tipo='Mensaje / Consulta'
+                    tipo='Nota interna'
                 )
-                messages.success(request, "Comentario agregado.")
+                messages.success(request, "Comentario agregado a la cronología.")
             return redirect('detalle_muestra', examen_id=muestra.id)
             
+        # ACCIÓN 3: Actualizar diagnóstico y estados (Patólogo)
         elif es_patologo_user and action == 'actualizar_diagnostico':
             if muestra.informe_cerrado and not request.user.is_superuser:
-                messages.error(request, "El informe está cerrado y bloqueado.")
+                messages.error(request, "El informe está cerrado y bloqueado por seguridad.")
                 return redirect('detalle_muestra', examen_id=muestra.id)
 
             nuevo_estado = request.POST.get('estado')
@@ -202,20 +253,20 @@ def detalle_muestra(request, examen_id):
             es_critico = request.POST.get('resultado_critico') == 'True'
             pin_ingresado = request.POST.get('pin_firma', '')
 
-            # VALIDACIÓN DE PIN (Solo si intenta Finalizar)
+            # Validación de PIN si se intenta finalizar
             if nuevo_estado == 'Finalizado' and muestra.estado != 'Finalizado':
                 if not request.user.pin_firma:
                     messages.error(request, "❌ Debe configurar su PIN de Firma Digital en 'Mi Perfil' antes de emitir un informe.")
                     return redirect('detalle_muestra', examen_id=muestra.id)
                 elif pin_ingresado != request.user.pin_firma:
-                    messages.error(request, "❌ PIN de Firma Incorrecto. El diagnóstico no fue cerrado.")
+                    messages.error(request, "❌ PIN de Firma Digital Incorrecto.")
                     return redirect('detalle_muestra', examen_id=muestra.id)
 
+            # Registrar cambio de estado en la cronología
             if nuevo_estado and nuevo_estado != muestra.estado:
                 estado_anterior = muestra.estado
                 muestra.estado = nuevo_estado
                 
-                # Se guarda EXACTAMENTE la fecha y hora de la firma
                 if nuevo_estado == 'Finalizado':
                     muestra.informe_cerrado = True
                     muestra.fecha_entrega = datetime.now().date()
@@ -223,23 +274,25 @@ def detalle_muestra(request, examen_id):
                 muestra.save()
                 Comentario.objects.create(
                     examen=muestra, user=request.user,
-                    comentario=f"Cambió el estado de '{estado_anterior}' a '{nuevo_estado}'",
+                    comentario=f"Cambio de estado en cadena de custodia: de '{estado_anterior}' a '{nuevo_estado}'",
                     tipo='Cambio de estado'
                 )
 
+            # Registrar marca de resultado crítico en la cronología
             if es_critico != muestra.resultado_critico:
                 muestra.resultado_critico = es_critico
                 muestra.save()
-                msg_critico = "Marcó el hallazgo como CRÍTICO / URGENTE." if es_critico else "Quitó la marca de resultado crítico."
+                msg_critico = "ALERTA: Se marcó la muestra como RESULTADO CRÍTICO / URGENTE." if es_critico else "Se retiró la marca de resultado crítico."
                 Comentario.objects.create(examen=muestra, user=request.user, comentario=msg_critico, tipo='Alerta Médica')
 
+            # Registrar nota diagnóstica en la cronología
             if nota_medica:
                 Comentario.objects.create(
                     examen=muestra, user=request.user,
                     comentario=nota_medica, tipo='Diagnóstico / Nota'
                 )
                 
-            messages.success(request, "Informe y diagnóstico guardados con éxito.")
+            messages.success(request, "Diagnóstico e información guardados correctamente en la trazabilidad.")
             return redirect('detalle_muestra', examen_id=muestra.id)
 
     return render(request, 'biopsias/detalle_muestra.html', {
@@ -378,16 +431,25 @@ def mis_plantillas(request):
 
 
 # --- ENDPOINTS AJAX ---
+@login_required
 def buscar_paciente_por_rut(request, rut):
+
     try:
         paciente = Paciente.objects.get(rut=rut)
-        return JsonResponse({
-            'encontrado': True, 'nombre_completo': paciente.nombre_completo,
-            'email': paciente.email, 'telefono': paciente.telefono, 'sexo': paciente.sexo,
-            'fecha_nacimiento': paciente.fecha_nacimiento.strftime('%Y-%m-%d') if paciente.fecha_nacimiento else ''
-        })
-    except Paciente.DoesNotExist:
-        return JsonResponse({'encontrado': False})
+        
+        if paciente:
+            return JsonResponse({
+                'encontrado': True,
+                'nombre_completo': paciente.nombre_completo,
+                'fecha_nacimiento': paciente.fecha_nacimiento.strftime('%Y-%m-%d') if paciente.fecha_nacimiento else '',
+                'sexo': paciente.sexo,
+                'telefono': paciente.telefono,
+                'email': paciente.email
+            })
+    except Exception:
+        pass
+        
+    return JsonResponse({'encontrado': False})
 
 @login_required
 def api_check_pendientes(request):
