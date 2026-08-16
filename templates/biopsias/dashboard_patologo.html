@@ -155,9 +155,9 @@
 </div>
 
 <script>
-    // POLLING CADA 3 SEG: detecta si se tomaron biopsias, si ingresaron NUEVAS o si hay chats pendientes
+    // 1. Polling de Bandeja de Patólogo
     setInterval(() => {
-        fetch('/api/check-pendientes/')
+        fetch("{% url 'api_check_pendientes' %}")
         .then(res => res.json())
         .then(data => {
             if(data.muestras) {
@@ -165,13 +165,11 @@
                 const existingCards = Array.from(document.querySelectorAll('.muestra-card'));
                 const existingIds = existingCards.map(card => parseInt(card.getAttribute('data-id')));
 
-                // 1. Detección de Muestra Nueva ingresada por el laboratorio -> Recarga suave la página
                 if (incomingIds.some(id => !existingIds.includes(id))) {
                     window.location.reload();
                     return;
                 }
 
-                // 2. Detección de Muestra Asignada a otro patólogo -> Desvanece la tarjeta de la pantalla
                 existingCards.forEach(card => {
                     const id = parseInt(card.getAttribute('data-id'));
                     if(!incomingIds.includes(id)) {
@@ -181,7 +179,6 @@
                     }
                 });
 
-                // 3. Actualización en tiempo real de la alerta del botón de Chat
                 data.muestras.forEach(m => {
                     const btn = document.getElementById('btn-chat-' + m.id);
                     if(btn) {
@@ -195,7 +192,7 @@
                     }
                 });
             }
-        });
+        }).catch(err => console.error(err));
     }, 3000);
 
     let chatIntervals = {};
@@ -203,7 +200,7 @@
     function abrirModalChat(id) { 
         document.getElementById('chat-modal-' + id).classList.replace('hidden', 'flex'); 
         cargarMensajes(id);
-        marcarLeido(id); // Desactiva la alerta en BD al abrir
+        marcarLeido(id);
         chatIntervals[id] = setInterval(() => cargarMensajes(id), 2000); 
     }
 
@@ -212,13 +209,15 @@
         if(chatIntervals[id]) clearInterval(chatIntervals[id]);
     }
 
+    // 2. Marcar como leído
     function marcarLeido(id) {
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
         const formData = new FormData();
         formData.append('action', 'marcar_leido');
         if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
 
-        fetch('/api/chat/' + id + '/', { method: 'POST', body: formData })
+        const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
+        fetch(url, { method: 'POST', body: formData })
         .then(() => {
             const btn = document.getElementById('btn-chat-' + id);
             if(btn) {
@@ -228,8 +227,10 @@
         });
     }
 
+    // 3. Cargar Mensajes
     function cargarMensajes(id) {
-        fetch('/api/chat/' + id + '/')
+        const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
+        fetch(url)
         .then(res => res.json())
         .then(data => {
             const container = document.getElementById('chat-box-' + id);
@@ -254,6 +255,7 @@
         });
     }
 
+    // 4. Enviar Mensaje
     function enviarMensaje(event, id) {
         event.preventDefault();
         const input = document.getElementById('input-msg-' + id);
@@ -264,10 +266,9 @@
         formData.append('mensaje', mensaje);
         formData.append('csrfmiddlewaretoken', csrfToken);
 
-        fetch('/api/chat/' + id + '/', {
-            method: 'POST',
-            body: formData
-        }).then(() => {
+        const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
+        fetch(url, { method: 'POST', body: formData })
+        .then(() => {
             input.value = '';
             cargarMensajes(id);
         });

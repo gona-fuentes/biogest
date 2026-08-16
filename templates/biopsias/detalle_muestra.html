@@ -163,7 +163,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const textareaNota = document.getElementById('nota');
 
     if (selectPlantillas && tipoExamenId) {
-        fetch(`/api/plantillas/${tipoExamenId}/`)
+        // Uso de ruta dinámica de Django
+        const url = "{% url 'api_obtener_plantillas' 0 %}".replace('0', tipoExamenId);
+        
+        fetch(url)
             .then(res => res.json())
             .then(data => {
                 if (data.plantillas && data.plantillas.length > 0) {
@@ -174,7 +177,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         selectPlantillas.appendChild(opt);
                     });
                 }
-            });
+            })
+            .catch(err => console.error("Error cargando plantillas:", err));
 
         selectPlantillas.addEventListener('change', function() {
             if (this.value) {

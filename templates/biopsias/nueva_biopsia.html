@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar Muestra - Biogest{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
+            <i class="fa-solid fa-file-circle-plus text-clinica"></i> Registro de Nueva Biopsia
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">Ingrese el RUT del paciente. Si ya existe en el sistema, los datos se autocompletarán.</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md border-t-4 border-patologia overflow-hidden p-6 md:p-8">
+        <form method="POST" class="space-y-8">
+            {% csrf_token %}
+            
+            <div>
+                <h3 class="text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-user-injured text-gray-400"></i> 1. Identificación del Paciente
+                </h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.rut.label }}</label>
+                        {{ form.rut }}
+                        <span id="rut-status" class="text-[10px] font-bold mt-1 text-emerald-600 hidden"><i class="fa-solid fa-check-circle"></i> Paciente Encontrado</span>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.nombre_completo.label }}</label>
+                        {{ form.nombre_completo }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.fecha_nacimiento.label }}</label>
+                        {{ form.fecha_nacimiento }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.sexo.label }}</label>
+                        {{ form.sexo }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.telefono.label }}</label>
+                        {{ form.telefono }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.email.label }}</label>
+                        {{ form.email }}
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-vial-circle-check text-gray-400"></i> 2. Detalle Médico y de la Muestra
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.tipo_examen.label }}</label>
+                        {{ form.tipo_examen }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.medico_solicitante.label }}</label>
+                        {{ form.medico_solicitante }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.fecha_toma.label }}</label>
+                        {{ form.fecha_toma }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.fecha_recepcion.label }}</label>
+                        {{ form.fecha_recepcion }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.cantidad_muestras.label }}</label>
+                        {{ form.cantidad_muestras }}
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.numero_fragmentos.label }}</label>
+                        {{ form.numero_fragmentos }}
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.laboratorio.label }}</label>
+                        {{ form.laboratorio }}
+                    </div>
+                </div>
+            </div>
+
+            {% if form.errors %}
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+                    <p class="text-sm text-red-700 font-bold">Revise los siguientes errores:</p>
+                    {{ form.errors }}
+                </div>
+            {% endif %}
+
+            <div class="pt-4 border-t border-gray-100 flex justify-end">
+                <button type="submit" class="bg-clinica hover:bg-gray-900 text-white font-bold py-2.5 px-6 rounded-md transition shadow flex items-center gap-2">
+                    <i class="fa-solid fa-save"></i> Registrar e Ingresar Muestra
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const rutInput = document.getElementById('id_rut');
+        const statusSpan = document.getElementById('rut-status');
+
+        if (rutInput) {
+            rutInput.addEventListener('blur', function() {
+                const rut = this.value.trim();
+                
+                if (rut.length > 5) {
+                    // LLamada a la API con la nueva estructura de URLs
+                    fetch(`/biopsias/api/paciente/${rut}/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.encontrado) {
+                                // Rellenar campos
+                                document.getElementById('id_nombre_completo').value = data.nombre_completo || '';
+                                document.getElementById('id_email').value = data.email || '';
+                                document.getElementById('id_telefono').value = data.telefono || '';
+                                document.getElementById('id_sexo').value = data.sexo || '';
+                                
+                                if (data.fecha_nacimiento) {
+                                    document.getElementById('id_fecha_nacimiento').value = data.fecha_nacimiento;
+                                }
+
+                                // Mostrar mensaje visual de éxito
+                                statusSpan.classList.remove('hidden');
+                                rutInput.classList.add('border-emerald-500', 'bg-emerald-50');
+                            } else {
+                                // Ocultar mensaje si no existe o se cambió de RUT
+                                statusSpan.classList.add('hidden');
+                                rutInput.classList.remove('border-emerald-500', 'bg-emerald-50');
+                            }
+                        })
+                        .catch(error => console.error('Error buscando RUT:', error));
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

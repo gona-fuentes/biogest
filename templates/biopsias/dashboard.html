@@ -3,7 +3,6 @@
 {% block title %}Panel de Laboratorio - Biogest{% endblock %}
 
 {% block content %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <div class="space-y-6">
 
     <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
@@ -11,9 +10,9 @@
             <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <i class="fa-solid fa-flask text-clinica"></i> Panel de Recepción y Proceso
             </h1>
-            <p class="text-sm text-gray-500">Gestión de muestras ingresadas y trazabilidad activa.</p>
+            <p class="text-sm text-gray-500">Gestión de muestras ingresadas y trazabilidad activa de frascos.</p>
         </div>
-        <a href="{% url 'nueva_biopsia' %}" class="bg-patologia hover:bg-emerald-600 text-white font-bold py-2.5 px-6 rounded-md transition shadow flex items-center gap-2">
+        <a href="{% url 'registrar_biopsia' %}" class="bg-patologia hover:bg-emerald-600 text-white font-bold py-2.5 px-6 rounded-md transition shadow flex items-center gap-2">
             <i class="fa-solid fa-plus"></i> Registrar Nueva Biopsia
         </a>
     </div>
@@ -49,10 +48,10 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     {% for muestra in muestras %}
-                    <tr class="hover:bg-emerald-50 transition" data-id="{{ muestra.id }}">
+                    <tr class="hover:bg-emerald-50 transition">
                         <td class="py-3 px-4 font-bold text-gray-800">{{ muestra.numero_correlativo }}</td>
                         <td class="py-3 px-4 font-medium">{{ muestra.paciente.nombre_completo }}</td>
-                        <td class="py-3 px-4 text-gray-600">{{ muestra.paciente.rut }}</td>
+                        <td class="py-3 px-4 text-gray-600 rut-paciente">{{ muestra.paciente.rut }}</td>
                         <td class="py-3 px-4 text-gray-600">{{ muestra.tipo_examen.nombre }}</td>
                         <td class="py-3 px-4">
                             {% if muestra.resultado_critico %}
@@ -71,20 +70,24 @@
                             {% endif %}
                         </td>
                         <td class="py-3 px-4 text-center">
-                            <div class="flex justify-center items-center gap-2">
+                            <div class="flex justify-center items-center gap-1.5">
                                 <button id="btn-chat-{{ muestra.id }}" onclick="abrirModalChat('{{ muestra.id }}')" title="Chat Interno"
-                                        class="px-2.5 py-1.5 rounded text-xs font-bold transition {% if muestra.alerta_chat_laboratorio %}bg-red-500 text-white animate-pulse shadow-md{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                                        class="px-2.5 py-1.5 rounded text-xs font-bold transition {% if muestra.alerta_chat_laboratorio %}bg-red-500 text-white animate-pulse shadow-md{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200{% endif %}">
                                     <i class="fa-regular fa-comments text-sm"></i>
                                 </button>
-                                <button onclick="generarEImprimirEtiqueta('{{ muestra.numero_correlativo }}', '{{ muestra.paciente.nombre_completo|escapejs }}', '{{ muestra.paciente.rut }}')" 
-                                        class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1.5 rounded text-xs font-semibold transition border border-gray-200" title="Imprimir Etiqueta para Frasco">
-                                    <i class="fa-solid fa-qrcode"></i>
-                                </button>                                <a href="{% url 'detalle_muestra' muestra.id %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1.5 rounded text-xs font-semibold transition" title="Ver Ficha">
+                                
+                                <button data-url="{% url 'etiqueta_frasco' muestra.id %}" 
+                                        onclick="window.open(this.dataset.url, 'EtiquetaQR', 'width=480,height=420')" 
+                                        class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1.5 rounded text-xs font-bold transition shadow-sm" title="Imprimir Etiqueta de Frasco">
+                                    <i class="fa-solid fa-qrcode text-sm"></i>
+                                </button>
+
+                                <a href="{% url 'detalle_muestra' muestra.id %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1.5 rounded text-xs font-semibold border border-gray-200 transition" title="Ver Ficha">
                                     <i class="fa-regular fa-eye"></i>
                                 </a>
                                 
                                 {% if muestra.estado == 'Finalizado' %}
-                                <a href="{% url 'generar_pdf' muestra.id %}" target="_blank" class="bg-gray-800 hover:bg-black text-white px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-sm" title="Descargar PDF">
+                                <a href="{% url 'generar_pdf' muestra.id %}" target="_blank" class="bg-gray-800 hover:bg-black text-white px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-sm" title="Descargar PDF Oficial">
                                     <i class="fa-solid fa-file-pdf"></i>
                                 </a>
                                 {% endif %}
@@ -133,9 +136,9 @@
 <script>
     let chatIntervals = {};
 
-    // Polling en segundo plano para verificar alertas de mensajes nuevos
+    // 1. Polling Automático de Alertas
     setInterval(() => {
-        fetch('/api/check-pendientes/')
+        fetch("{% url 'api_check_pendientes' %}")
         .then(res => res.json())
         .then(data => {
             if(data.muestras) {
@@ -145,18 +148,20 @@
                         if(m.alerta_chat) {
                             btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-red-500 text-white animate-pulse shadow-md";
                         } else {
-                            btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-gray-100 text-gray-600 hover:bg-gray-200";
+                            btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200";
                         }
                     }
                 });
             }
-        });
+        })
+        .catch(err => console.error("Error en alertas:", err));
     }, 3000);
 
+    // 2. Control de Modal de Chat
     function abrirModalChat(id) { 
         document.getElementById('chat-modal-' + id).classList.replace('hidden', 'flex'); 
         cargarMensajes(id);
-        marcarLeido(id); // Marca como leído automáticamente al abrir
+        marcarLeido(id); 
         chatIntervals[id] = setInterval(() => cargarMensajes(id), 2000); 
     }
 
@@ -165,21 +170,25 @@
         if(chatIntervals[id]) clearInterval(chatIntervals[id]);
     }
 
+    // 3. Marcar como leído dinámicamente
     function marcarLeido(id) {
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
         const formData = new FormData();
         formData.append('action', 'marcar_leido');
         if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
 
-        fetch('/api/chat/' + id + '/', { method: 'POST', body: formData })
+        const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
+        fetch(url, { method: 'POST', body: formData })
         .then(() => {
             const btn = document.getElementById('btn-chat-' + id);
-            if(btn) btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-gray-100 text-gray-600 hover:bg-gray-200";
+            if(btn) btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200";
         });
     }
 
+    // 4. Cargar Chat dinámicamente
     function cargarMensajes(id) {
-        fetch('/api/chat/' + id + '/')
+        const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
+        fetch(url)
         .then(res => res.json())
         .then(data => {
             const container = document.getElementById('chat-box-' + id);
@@ -204,6 +213,7 @@
         });
     }
 
+    // 5. Enviar Mensaje dinámicamente
     function enviarMensaje(event, id) {
         event.preventDefault();
         const input = document.getElementById('input-msg-' + id);
@@ -214,69 +224,12 @@
         formData.append('mensaje', mensaje);
         formData.append('csrfmiddlewaretoken', csrfToken);
 
-        fetch('/api/chat/' + id + '/', {
-            method: 'POST',
-            body: formData
-        }).then(() => {
+        const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
+        fetch(url, { method: 'POST', body: formData })
+        .then(() => {
             input.value = '';
             cargarMensajes(id);
         });
-    }
-</script>
-<div id="etiqueta-print-zone" style="display:none;"></div>
-
-<script>
-    function generarEImprimirEtiqueta(correlativo, paciente, rut) {
-        const printZone = document.getElementById('etiqueta-print-zone');
-        printZone.innerHTML = ''; // Limpiar por si había uno anterior
-        
-        // 1. Generar el código QR
-        new QRCode(printZone, {
-            text: correlativo,
-            width: 120,
-            height: 120,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.H
-        });
-
-        // 2. Esperar 100ms a que la librería dibuje el QR y luego abrir la ventana de impresión
-        setTimeout(() => {
-            const qrImageSrc = printZone.querySelector('img').src;
-            const ventanaImpresion = window.open('', '', 'width=400,height=500');
-            
-            ventanaImpresion.document.write(`
-                <html>
-                    <head>
-                        <title>Etiqueta Biopsia - ${correlativo}</title>
-                        <style>
-                            body { font-family: 'Arial', sans-serif; text-align: center; margin: 0; padding: 10px; color: black; }
-                            h2 { margin: 0 0 5px 0; font-size: 20px; font-weight: 900; }
-                            .qr-container { margin: 10px auto; display: flex; justify-content: center; }
-                            .qr-container img { max-width: 110px; }
-                            .info-box { font-size: 12px; text-align: left; line-height: 1.4; padding: 12px; border: 2px dashed #000; display: inline-block; min-width: 220px; border-radius: 8px;}
-                            p { margin: 3px 0; }
-                            @media print {
-                                @page { margin: 0; size: auto; }
-                                body { padding: 5mm; }
-                            }
-                        </style>
-                    </head>
-                    <body onload="setTimeout(() => { window.print(); window.close(); }, 300)">
-                        <div class="info-box">
-                            <h2>${correlativo}</h2>
-                            <p><strong>Paciente:</strong> ${paciente}</p>
-                            <p><strong>RUT:</strong> ${rut}</p>
-                            <div class="qr-container">
-                                <img src="${qrImageSrc}" alt="QR Code" />
-                            </div>
-                            <p style="text-align:center; font-size:10px; font-weight:bold;">Biogest Trazabilidad</p>
-                        </div>
-                    </body>
-                </html>
-            `);
-            ventanaImpresion.document.close();
-        }, 150); 
     }
 </script>
 {% endblock %}
