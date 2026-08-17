@@ -34,8 +34,7 @@ urlpatterns = [
     # ==========================================
     # 5. PLANTILLAS PERSONALES (PATÓLOGO)
     # ==========================================
-    path('plantillas/', views.mis_plantillas, name='mis_plantillas'),
-
+    path('plantillas/', views.gestion_plantillas, name='gestion_plantillas'),
     # ==========================================
     # 6. ENDPOINTS AJAX / TIEMPO REAL (API)
     # ==========================================

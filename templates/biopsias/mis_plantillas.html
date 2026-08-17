@@ -3,85 +3,177 @@
 {% block title %}Mis Plantillas - Biogest{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="max-w-6xl mx-auto space-y-6">
 
-    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
-            <i class="fa-solid fa-file-lines text-patologia"></i> Mis Preinformes Diagnósticos
-        </h1>
-        <p class="text-sm text-gray-500 mt-1">Cree y administre plantillas de texto para acelerar la redacción de sus diagnósticos frecuentes.</p>
+    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fa-solid fa-file-lines text-patologia"></i> Plantillas de Diagnóstico
+            </h1>
+            <p class="text-sm text-gray-500">Gestiona tus preinformes predefinidos para agilizar tus evaluaciones.</p>
+        </div>
+        <button onclick="abrirModalCrear()" class="bg-patologia hover:bg-emerald-600 text-white font-bold py-2.5 px-5 rounded-md transition shadow flex items-center gap-2 text-sm">
+            <i class="fa-solid fa-plus"></i> Nueva Plantilla
+        </button>
     </div>
 
-    <div class="flex flex-col lg:flex-row gap-6">
-        
-        <div class="lg:w-1/3 min-w-0">
-            <div class="bg-white rounded-lg shadow-md border-t-4 border-clinica p-5">
-                <h3 class="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
-                    <i class="fa-solid fa-plus-circle text-clinica"></i> Nueva Plantilla
-                </h3>
-                
-                <form method="POST" class="space-y-4">
-                    {% csrf_token %}
-                    
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Tipo de Examen Asociado</label>
-                        {{ form.tipo_examen }}
-                        <p class="text-[10px] text-gray-400 mt-1">La plantilla solo aparecerá cuando evalúe este examen.</p>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Título Rápido</label>
-                        {{ form.titulo }}
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Texto del Preinforme</label>
-                        {{ form.texto_predefinido }}
-                    </div>
-
-                    <button type="submit" class="w-full bg-clinica hover:bg-gray-900 text-white font-bold py-2.5 rounded transition shadow flex justify-center items-center gap-2">
-                        <i class="fa-solid fa-save"></i> Guardar Plantilla
-                    </button>
-                </form>
+    {% if messages %}
+        {% for message in messages %}
+            <div class="p-4 rounded-md text-sm font-semibold {% if message.tags == 'error' %}bg-red-100 text-red-800 border border-red-200{% else %}bg-emerald-100 text-emerald-800 border border-emerald-200{% endif %}">
+                <i class="fa-solid {% if message.tags == 'error' %}fa-circle-exclamation{% else %}fa-circle-check{% endif %} mr-2"></i> {{ message }}
             </div>
-        </div>
+        {% endfor %}
+    {% endif %}
 
-        <div class="lg:w-2/3 min-w-0">
-            <div class="bg-white rounded-lg shadow-md border border-gray-200 p-5">
-                <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                    <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
-                        <i class="fa-solid fa-list-check text-gray-500"></i> Plantillas Guardadas ({{ plantillas|length }})
-                    </h3>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {% for plantilla in plantillas %}
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition relative group">
-                        <span class="absolute -top-2.5 left-3 bg-patologia text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
-                            {{ plantilla.tipo_examen.nombre }}
-                        </span>
-                        
-                        <h4 class="font-bold text-clinica mt-1 mb-2 pr-6">{{ plantilla.titulo }}</h4>
-                        
-                        <div class="bg-white border border-gray-100 p-2.5 rounded text-xs text-gray-600 font-mono h-24 overflow-y-auto whitespace-pre-wrap">
-                            {{ plantilla.texto_predefinido }}
-                        </div>
-                        
-                        <div class="mt-3 text-right">
-                            <span class="text-[10px] text-gray-400"><i class="fa-regular fa-calendar"></i> Creada el {{ plantilla.created_at|date:"d/m/Y" }}</span>
-                        </div>
-                    </div>
+    <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead class="bg-gray-100 text-gray-700 text-xs uppercase tracking-wider border-b">
+                    <tr>
+                        <th class="py-3.5 px-4">Título</th>
+                        <th class="py-3.5 px-4">Tipo de Examen</th>
+                        <th class="py-3.5 px-4 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for p in plantillas %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="py-3 px-4 font-bold text-gray-800">{{ p.titulo }}</td>
+                        <td class="py-3 px-4">
+                            <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold px-2.5 py-1 rounded">
+                                {{ p.tipo_examen.nombre }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="flex justify-center items-center gap-2">
+                                <button onclick="abrirModalEditar('{{ p.id }}', '{{ p.titulo|escapejs }}', '{{ p.tipo_examen.id }}', '{{ p.texto_predefinido|escapejs }}')" 
+                                        class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-semibold border border-gray-300 transition flex items-center gap-1">
+                                    <i class="fa-solid fa-pen-to-square text-patologia"></i> Editar
+                                </button>
+                                <button onclick="abrirModalEliminar('{{ p.id }}', '{{ p.titulo|escapejs }}')" 
+                                        class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded text-xs font-semibold border border-red-200 transition flex items-center gap-1">
+                                    <i class="fa-solid fa-trash-can"></i> Eliminar
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
                     {% empty %}
-                    <div class="col-span-full py-10 text-center text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                        <i class="fa-regular fa-folder-open text-4xl mb-3 opacity-50 block"></i>
-                        <p class="text-sm">Aún no ha creado ninguna plantilla personal.</p>
-                        <p class="text-xs mt-1">Use el formulario de la izquierda para comenzar.</p>
-                    </div>
+                    <tr>
+                        <td colspan="4" class="text-center py-8 text-gray-500">
+                            <i class="fa-solid fa-folder-open text-3xl mb-2 text-gray-300 block"></i>
+                            No tienes plantillas guardadas. Haz clic en "Nueva Plantilla" para crear la primera.
+                        </td>
+                    </tr>
                     {% endfor %}
-                </div>
-            </div>
+                </tbody>
+            </table>
         </div>
-        
     </div>
 </div>
+
+<div id="modal-form-plantilla" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full flex flex-col overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+            <h3 id="modal-titulo" class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                <i class="fa-solid fa-file-lines text-patologia"></i> Nueva Plantilla
+            </h3>
+            <button onclick="cerrarModalForm()" class="text-gray-400 hover:text-red-500 font-bold"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form method="POST" class="p-5 space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="action" id="form-action" value="crear">
+            <input type="hidden" name="plantilla_id" id="form-plantilla-id" value="">
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Título de la Plantilla</label>
+                <input type="text" name="titulo" id="input-titulo" required placeholder="Ej: Biopsia Gástrica Normal" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-patologia text-sm">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tipo de Examen Asociado</label>
+                <select name="tipo_examen" id="select-tipo-examen" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-patologia text-sm">
+                    <option value="">-- Seleccionar Examen --</option>
+                    {% for te in tipos_examen %}
+                        <option value="{{ te.id }}">{{ te.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Texto Predefinido (Preinforme)</label>
+                <textarea name="texto_predefinido" id="textarea-texto" rows="8" required placeholder="Escriba aquí la estructura macroscópica, microscópica y diagnóstico..." 
+                          class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-patologia font-mono text-sm leading-relaxed"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button type="button" onclick="cerrarModalForm()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-sm font-semibold">Cancelar</button>
+                <button type="submit" class="px-5 py-2 bg-patologia hover:bg-emerald-600 text-white rounded text-sm font-bold shadow flex items-center gap-1.5">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar Plantilla
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modal-eliminar-plantilla" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 text-center space-y-4">
+        <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl">
+            <i class="fa-solid fa-trash-can"></i>
+        </div>
+        <h3 class="text-lg font-bold text-gray-800">¿Eliminar Plantilla?</h3>
+        <p class="text-sm text-gray-600">Estás a punto de borrar la plantilla <strong id="eliminar-titulo-nombre" class="text-gray-800"></strong>. Esta acción no se puede deshacer.</p>
+        
+        <form method="POST" class="flex justify-center gap-3 pt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="eliminar">
+            <input type="hidden" name="plantilla_id" id="eliminar-plantilla-id" value="">
+            
+            <button type="button" onclick="cerrarModalEliminar()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-sm font-semibold">Cancelar</button>
+            <button type="submit" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-bold shadow">Sí, Eliminar</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Abrir Modal para Crear
+    function abrirModalCrear() {
+        document.getElementById('form-action').value = 'crear';
+        document.getElementById('form-plantilla-id').value = '';
+        document.getElementById('modal-titulo').innerHTML = '<i class="fa-solid fa-file-lines text-patologia"></i> Nueva Plantilla';
+        document.getElementById('input-titulo').value = '';
+        document.getElementById('select-tipo-examen').value = '';
+        document.getElementById('textarea-texto').value = '';
+
+        document.getElementById('modal-form-plantilla').classList.replace('hidden', 'flex');
+    }
+
+    // Abrir Modal para Editar
+    function abrirModalEditar(id, titulo, tipoExamenId, texto) {
+        document.getElementById('form-action').value = 'editar';
+        document.getElementById('form-plantilla-id').value = id;
+        document.getElementById('modal-titulo').innerHTML = '<i class="fa-solid fa-pen-to-square text-patologia"></i> Editar Plantilla';
+        
+        document.getElementById('input-titulo').value = titulo;
+        document.getElementById('select-tipo-examen').value = tipoExamenId;
+        document.getElementById('textarea-texto').value = texto;
+
+        document.getElementById('modal-form-plantilla').classList.replace('hidden', 'flex');
+    }
+
+    function cerrarModalForm() {
+        document.getElementById('modal-form-plantilla').classList.replace('flex', 'hidden');
+    }
+
+    // Modal Eliminar
+    function abrirModalEliminar(id, titulo) {
+        document.getElementById('eliminar-plantilla-id').value = id;
+        document.getElementById('eliminar-titulo-nombre').textContent = titulo;
+        document.getElementById('modal-eliminar-plantilla').classList.replace('hidden', 'flex');
+    }
+
+    function cerrarModalEliminar() {
+        document.getElementById('modal-eliminar-plantilla').classList.replace('flex', 'hidden');
+    }
+</script>
 {% endblock %}

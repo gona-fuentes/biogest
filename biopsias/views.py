@@ -455,19 +455,49 @@ def exportar_excel(request):
 # --- PLANTILLAS PATÓLOGO ---
 @login_required
 @user_passes_test(es_patologo, login_url='/usuarios/login/')
-def mis_plantillas(request):
-    plantillas = PlantillaPatologo.objects.filter(patologo=request.user)
+def gestion_plantillas(request):
     if request.method == 'POST':
-        form = PlantillaPatologoForm(request.POST)
-        if form.is_valid():
-            nueva = form.save(commit=False)
-            nueva.patologo = request.user
-            nueva.save()
-            messages.success(request, "Plantilla guardada con éxito.")
-            return redirect('mis_plantillas')
-    else:
-        form = PlantillaPatologoForm()
-    return render(request, 'biopsias/mis_plantillas.html', {'plantillas': plantillas, 'form': form})
+        action = request.POST.get('action')
+
+        # 1. CREAR PLANTILLA
+        if action == 'crear':
+            titulo = request.POST.get('titulo', '').strip()
+            tipo_examen_id = request.POST.get('tipo_examen')
+            texto = request.POST.get('texto_predefinido', '').strip()
+            
+            if titulo and tipo_examen_id and texto:
+                PlantillaPatologo.objects.create(
+                    patologo=request.user,
+                    tipo_examen_id=tipo_examen_id,
+                    titulo=titulo,
+                    texto_predefinido=texto
+                )
+
+        # 2. EDITAR PLANTILLA
+        elif action == 'editar':
+            plantilla_id = request.POST.get('plantilla_id')
+            plantilla = get_object_or_404(PlantillaPatologo, id=plantilla_id, patologo=request.user)
+            
+            plantilla.titulo = request.POST.get('titulo', '').strip()
+            plantilla.tipo_examen_id = request.POST.get('tipo_examen')
+            plantilla.texto_predefinido = request.POST.get('texto_predefinido', '').strip()
+            plantilla.save()
+
+        # 3. ELIMINAR PLANTILLA
+        elif action == 'eliminar':
+            plantilla_id = request.POST.get('plantilla_id')
+            plantilla = get_object_or_404(PlantillaPatologo, id=plantilla_id, patologo=request.user)
+            plantilla.delete()
+
+        return redirect('gestion_plantillas')
+
+    plantillas = PlantillaPatologo.objects.filter(patologo=request.user).select_related('tipo_examen').order_by('-id')
+    tipos_examen = TipoExamen.objects.all()
+
+    return render(request, 'biopsias/mis_plantillas.html', {
+        'plantillas': plantillas,
+        'tipos_examen': tipos_examen,
+    })
 
 
 # --- ENDPOINTS AJAX / API ---
