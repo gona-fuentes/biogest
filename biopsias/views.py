@@ -16,7 +16,7 @@ from django.utils import timezone
 # IMPORTACIONES LIMPIAS DE LA APP
 from .models import Examen, Comentario, TipoExamen, Paciente, PlantillaPatologo
 from .forms import ExamenForm, PlantillaPatologoForm
-
+from .utils import enviar_informe_por_correo
 User = get_user_model()
 
 
@@ -37,34 +37,10 @@ def limpiar_rut(rut):
     return re.sub(r'[^0-9kK]', '', str(rut)).upper()
 
 
-# --- VISTAS DE LABORATORIO ---
 @login_required
 @user_passes_test(es_laboratorio, login_url='/usuarios/login/')
-def dashboard_laboratorio(request):
+def dashboard(request):
     query = request.GET.get('q', '').strip()
-    
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        examen_id = request.POST.get('examen_id')
-        muestra = get_object_or_404(Examen, id=examen_id)
-
-        if action == 'enviar_chat' and muestra.estado != 'Finalizado':
-            mensaje = request.POST.get('mensaje', '').strip()
-            if mensaje:
-                Comentario.objects.create(
-                    examen=muestra, user=request.user, 
-                    comentario=mensaje, tipo='Mensaje / Consulta'
-                )
-                muestra.alerta_chat_patologo = True
-                muestra.alerta_chat_laboratorio = False
-                muestra.save()
-        
-        elif action == 'marcar_leido':
-            muestra.alerta_chat_laboratorio = False
-            muestra.save()
-            
-        return redirect('dashboard')
-
     muestras = Examen.objects.all().order_by('-fecha_recepcion')
     
     if query:
@@ -86,6 +62,8 @@ def dashboard_laboratorio(request):
         'page_obj': page_obj,
         'query': query
     })
+
+
 
 
 @login_required
@@ -146,17 +124,18 @@ def registrar_biopsia(request):
 
 
 # --- VISTAS DE PATÓLOGO ---
+
+# --- VISTAS DE PATÓLOGO ---
 @login_required
 @user_passes_test(es_patologo, login_url='/usuarios/login/')
 def dashboard_patologo(request):
     query_historial = request.GET.get('q_historial', '').strip()
     
-    # 1. MANEJO DE POST (Chat y acciones rápidas)
+    # 1. MANEJO DE POST (Chat, Marcar Leído y Enviar Correo)
     if request.method == 'POST':
         action = request.POST.get('action')
         examen_id = request.POST.get('examen_id')
         
-        # En caso de que se pase el ID por URL o POST, se busca la muestra
         if examen_id:
             muestra = get_object_or_404(Examen, id=examen_id)
 
@@ -175,15 +154,31 @@ def dashboard_patologo(request):
                 muestra.alerta_chat_patologo = False
                 muestra.save()
                 
+            elif action == 'enviar_correo':
+                # Buscar correo de destino (laboratorio o paciente)
+                email_destino = None
+                if hasattr(muestra, 'laboratorio') and muestra.laboratorio and muestra.laboratorio.email:
+                    email_destino = muestra.laboratorio.email
+                elif muestra.paciente and muestra.paciente.email:
+                    email_destino = muestra.paciente.email
+                
+                if email_destino:
+                    try:
+                        enviar_informe_por_correo(muestra, email_destino)
+                        messages.success(request, f'✓ Informe {muestra.numero_correlativo} enviado exitosamente a {email_destino}.')
+                    except Exception as e:
+                        messages.error(request, f'✕ Error al enviar el correo: {e}')
+                else:
+                    messages.error(request, f'✕ No se encontró una dirección de correo configurada para la muestra {muestra.numero_correlativo}.')
+
         return redirect('dashboard_patologo')
 
-    # 2. BANDEJA SUPERIOR: Muestras Pendientes (SIN PAGINAR)
-    # Mostramos todas las activas asignadas a él o sin asignar
+    # 2. BANDEJA SUPERIOR: Muestras Pendientes
     muestras_pendientes = Examen.objects.exclude(estado='Finalizado').filter(
         Q(patologo__isnull=True) | Q(patologo=request.user)
     ).order_by('-fecha_recepcion')
 
-    # 3. BANDEJA INFERIOR: Historial General (PAGINADO)
+    # 3. BANDEJA INFERIOR: Historial General
     historial_queryset = Examen.objects.all().order_by('-fecha_recepcion')
     
     if query_historial:
@@ -195,16 +190,14 @@ def dashboard_patologo(request):
             Q(numero_correlativo__icontains=query_historial)
         )
 
-    # Configuración del paginador solo para el historial
-    # Lee el parámetro 'page' genérico que envían los botones del HTML
-    paginator = Paginator(historial_queryset, 5) # 5 registros por página
+    # Configuración del paginador
+    paginator = Paginator(historial_queryset, 5)
     page_number = request.GET.get('page') 
     historial_examenes = paginator.get_page(page_number)
 
-    # 4. RENDERIZADO AL TEMPLATE
     context = {
-        'muestras_pendientes': muestras_pendientes, # Lista completa
-        'historial_examenes': historial_examenes, # Objeto paginado (Page)
+        'muestras_pendientes': muestras_pendientes,
+        'historial_examenes': historial_examenes,
         'query_historial': query_historial,
     }
     

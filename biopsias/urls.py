@@ -5,7 +5,7 @@ urlpatterns = [
     # ==========================================
     # 1. PANELES PRINCIPALES (DASHBOARDS)
     # ==========================================
-    path('laboratorio/', views.dashboard_laboratorio, name='dashboard'),
+    path('laboratorio/', views.dashboard, name='dashboard'),
     path('patologia/', views.dashboard_patologo, name='dashboard_patologo'),
 
 
