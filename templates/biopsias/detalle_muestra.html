@@ -28,7 +28,7 @@
                 <div class="bg-gray-50 p-3 rounded border border-gray-100 min-w-0">
                     <span class="block text-xs font-bold text-gray-500 uppercase"><i class="fa-solid fa-user"></i> Paciente</span>
                     <span class="text-gray-800 font-semibold block break-words">{{ muestra.paciente.nombre_completo }}</span>
-                    <span class="block text-xs text-gray-500 font-mono rut-paciente">RUT: {{ muestra.paciente.rut }}</span>
+                    <span class="block text-xs text-gray-500 font-mono">RUT: {{ muestra.paciente.rut }}</span>
                 </div>
 
                 <div class="bg-gray-50 p-3 rounded border border-gray-100 min-w-0">
@@ -142,9 +142,9 @@
                     <i class="fa-solid fa-clock-rotate-left text-gray-500"></i> Cadena de Custodia
                 </h3>
                 
-                <div class="space-y-4">
-                    {% for log in historial %}
-                    <div class="p-3.5 bg-white rounded-lg shadow-sm border border-gray-200 border-l-4 {% if log.tipo == 'Diagnóstico / Nota' %}border-patologia{% elif log.tipo == 'Apertura Admin' %}border-red-500{% else %}border-clinica{% endif %}">
+                <div class="space-y-4" id="comentarios-container">
+                    {% for log in comentarios %}
+                    <div class="comment-item p-3.5 bg-white rounded-lg shadow-sm border border-gray-200 border-l-4 {% if log.tipo == 'Diagnóstico / Nota' %}border-patologia{% elif log.tipo == 'Apertura Admin' %}border-red-500{% else %}border-clinica{% endif %}">
                         <div class="flex items-center justify-between mb-1.5 gap-2">
                             <span class="font-bold text-gray-800 text-xs truncate">
                                 <i class="fa-solid fa-user-circle"></i> {{ log.user.username }}
@@ -160,19 +160,103 @@
                     <p class="text-xs text-gray-400 italic text-center py-4">No hay eventos registrados en la cronología.</p>
                     {% endfor %}
                 </div>
+
+                <div id="comentarios-pagination" class="flex items-center justify-between pt-4 mt-4 border-t border-gray-200 text-xs hidden">
+                    <button id="btn-comentarios-prev" onclick="cambiarPaginaComentarios(-1)" class="px-2.5 py-1 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold rounded transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="comentarios-page-info" class="text-gray-500 font-medium">Página 1 de 1</span>
+                    <button id="btn-comentarios-next" onclick="cambiarPaginaComentarios(1)" class="px-2.5 py-1 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold rounded transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        Siguiente <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                {% if not muestra.informe_cerrado or request.user.is_superuser %}
+                    <div class="mt-6 pt-4 border-t border-gray-200">
+                        <form method="POST" class="space-y-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="agregar_comentario">
+                            <div>
+                                <label for="comentario" class="block text-xs font-bold text-gray-600 mb-1">
+                                    <i class="fa-solid fa-plus-circle text-patologia"></i> Añadir Nota a Trazabilidad
+                                </label>
+                                <textarea name="comentario" id="comentario" rows="2" placeholder="Escriba un comentario o suceso relevante..." required class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-patologia"></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-2 px-4 rounded text-xs transition shadow-sm">
+                                Registrar Suceso
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
 <script>
+// PAGINACIÓN DE CADENA DE CUSTODIA (COMENTARIOS) - MÁXIMO 5 POR PÁGINA
+let comentariosPaginaActual = 1;
+const comentariosPorPagina = 5;
+
+function inicializarPaginacionComentarios() {
+    const items = document.querySelectorAll('#comentarios-container .comment-item');
+    const paginationContainer = document.getElementById('comentarios-pagination');
+    
+    if (!items || items.length === 0) return;
+
+    const totalPaginas = Math.ceil(items.length / comentariosPorPagina);
+
+    if (totalPaginas > 1) {
+        paginationContainer.classList.remove('hidden');
+    } else {
+        paginationContainer.classList.add('hidden');
+    }
+
+    renderizarPaginaComentarios();
+}
+
+function renderizarPaginaComentarios() {
+    const items = document.querySelectorAll('#comentarios-container .comment-item');
+    const totalPaginas = Math.ceil(items.length / comentariosPorPagina);
+
+    if (comentariosPaginaActual < 1) comentariosPaginaActual = 1;
+    if (comentariosPaginaActual > totalPaginas) comentariosPaginaActual = totalPaginas;
+
+    items.forEach((item, index) => {
+        const inicio = (comentariosPaginaActual - 1) * comentariosPorPagina;
+        const fin = inicio + comentariosPorPagina;
+        if (index >= inicio && index < fin) {
+            item.classList.remove('hidden');
+        } else {
+            item.classList.add('hidden');
+        }
+    });
+
+    const pageInfo = document.getElementById('comentarios-page-info');
+    if (pageInfo) {
+        pageInfo.textContent = `Página ${comentariosPaginaActual} de ${totalPaginas || 1}`;
+    }
+
+    const btnPrev = document.getElementById('btn-comentarios-prev');
+    const btnNext = document.getElementById('btn-comentarios-next');
+
+    if (btnPrev) btnPrev.disabled = (comentariosPaginaActual === 1);
+    if (btnNext) btnNext.disabled = (comentariosPaginaActual === totalPaginas || totalPaginas === 0);
+}
+
+function cambiarPaginaComentarios(direccion) {
+    comentariosPaginaActual += direccion;
+    renderizarPaginaComentarios();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    inicializarPaginacionComentarios();
+
     const tipoExamenId = "{{ muestra.tipo_examen.id }}";
     const selectPlantillas = document.getElementById('select-plantilla-rapida');
     const textareaNota = document.getElementById('nota');
 
     if (selectPlantillas && tipoExamenId) {
-        // Uso de ruta dinámica de Django
         const url = "{% url 'api_obtener_plantillas' 0 %}".replace('0', tipoExamenId);
         
         fetch(url)
@@ -198,7 +282,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // JS PARA LA CAJA DEL PIN
     const estadoSelect = document.getElementById('estado');
     const cajaFirma = document.getElementById('caja-firma');
     const inputPin = document.getElementById('pin_firma');

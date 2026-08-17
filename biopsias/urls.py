@@ -7,7 +7,7 @@ urlpatterns = [
     # ==========================================
     path('laboratorio/', views.dashboard_laboratorio, name='dashboard'),
     path('patologia/', views.dashboard_patologo, name='dashboard_patologo'),
-    path('patologia/tomar/', views.tomar_muestra, name='tomar_muestra'),
+
 
     # ==========================================
     # 2. GESTIÓN DE BIOPSIAS Y EVALUACIÓN

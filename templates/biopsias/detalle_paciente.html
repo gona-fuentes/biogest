@@ -77,7 +77,7 @@
                         <td class="py-3 px-4 font-medium text-gray-800">{{ ex.tipo_examen.nombre }}</td>
                         <td class="py-3 px-4 text-gray-600">
                             {% if ex.patologo %}
-                                <i class="fa-solid fa-user-doctor text-emerald-600 mr-1"></i> {{ ex.patologo.username }}
+                                <i class="fa-solid fa-user-doctor text-emerald-600 mr-1"></i> {{ ex.patologo.first_name }} {{ ex.patologo.last_name }}
                             {% else %}
                                 <span class="text-gray-400 italic">Sin asignar</span>
                             {% endif %}

@@ -40,14 +40,6 @@
                 </button>
             </div>
 
-            {% if user.is_authenticated %}
-            <div class="px-4 py-2 bg-black/30 rounded-lg mx-3 my-3 flex items-center justify-between text-xs">
-                <span class="text-gray-300 font-semibold"><i class="fa-solid fa-user-shield text-patologia mr-1"></i> Ocultar RUT</span>
-                <button onclick="toggleModoPrivacidad()" id="btn-privacidad" class="text-gray-400 hover:text-white transition focus:outline-none">
-                    <i class="fa-solid fa-eye-slash text-base"></i>
-                </button>
-            </div>
-            {% endif %}
 
             <nav class="p-4 space-y-1.5 text-sm font-medium">
                 {% if user.is_authenticated %}

@@ -107,7 +107,7 @@
 
         <div class="bg-white rounded-lg shadow-md overflow-x-auto border border-gray-200">
             <table class="w-full text-left border-collapse text-sm">
-                <thead class="bg-gray-100 text-gray-700 text-xs uppercase tracking-wider border-b">
+                <thead class="bg-clinica text-white text-xs uppercase tracking-wider border-b">
                     <tr>
                         <th class="py-3 px-4">Correlativo</th>
                         <th class="py-3 px-4">Paciente</th>
@@ -149,13 +149,50 @@
                     {% endfor %}
                 </tbody>
             </table>
+
+            {% if historial_examenes.has_other_pages %}
+            <div class="px-4 py-3 bg-white border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="text-xs text-gray-500">
+                    Mostrando <strong>{{ historial_examenes.start_index }}</strong> a <strong>{{ historial_examenes.end_index }}</strong> de <strong>{{ historial_examenes.paginator.count }}</strong> exámenes
+                </div>
+                <div class="flex items-center gap-1 text-xs">
+                    {% if historial_examenes.has_previous %}
+                        <a href="?page={{ historial_examenes.previous_page_number }}{% if query_historial %}&q_historial={{ query_historial }}{% endif %}" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-semibold transition border border-gray-200">
+                            <i class="fa-solid fa-chevron-left"></i> Anterior
+                        </a>
+                    {% else %}
+                        <span class="px-2.5 py-1 bg-gray-50 text-gray-400 rounded font-semibold border border-gray-100 cursor-not-allowed">
+                            <i class="fa-solid fa-chevron-left"></i> Anterior
+                        </span>
+                    {% endif %}
+
+                    {% for num in historial_examenes.paginator.page_range %}
+                        {% if historial_examenes.number == num %}
+                            <span class="px-2.5 py-1 bg-patologia text-white rounded font-bold">{{ num }}</span>
+                        {% elif num > historial_examenes.number|add:'-3' and num < historial_examenes.number|add:'3' %}
+                            <a href="?page={{ num }}{% if query_historial %}&q_historial={{ query_historial }}{% endif %}" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-semibold transition border border-gray-200">{{ num }}</a>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if historial_examenes.has_next %}
+                        <a href="?page={{ historial_examenes.next_page_number }}{% if query_historial %}&q_historial={{ query_historial }}{% endif %}" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-semibold transition border border-gray-200">
+                            Siguiente <i class="fa-solid fa-chevron-right"></i>
+                        </a>
+                    {% else %}
+                        <span class="px-2.5 py-1 bg-gray-50 text-gray-400 rounded font-semibold border border-gray-100 cursor-not-allowed">
+                            Siguiente <i class="fa-solid fa-chevron-right"></i>
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
 </div>
 
 <script>
-    // 1. Polling de Bandeja de Patólogo
+    // Scripts de Polling y Chat...
     setInterval(() => {
         fetch("{% url 'api_check_pendientes' %}")
         .then(res => res.json())
@@ -209,7 +246,6 @@
         if(chatIntervals[id]) clearInterval(chatIntervals[id]);
     }
 
-    // 2. Marcar como leído
     function marcarLeido(id) {
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
         const formData = new FormData();
@@ -227,7 +263,6 @@
         });
     }
 
-    // 3. Cargar Mensajes
     function cargarMensajes(id) {
         const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
         fetch(url)
@@ -255,7 +290,6 @@
         });
     }
 
-    // 4. Enviar Mensaje
     function enviarMensaje(event, id) {
         event.preventDefault();
         const input = document.getElementById('input-msg-' + id);

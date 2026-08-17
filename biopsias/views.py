@@ -1,7 +1,7 @@
 import csv
 import uuid
 import hashlib
-from datetime import datetime
+import re
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -11,14 +11,16 @@ from django.db.models import Q, Count
 from django.db.models.functions import TruncMonth
 from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
-# IMPORTACIONES LIMPIAS (Solo lo de esta app)
+# IMPORTACIONES LIMPIAS DE LA APP
 from .models import Examen, Comentario, TipoExamen, Paciente, PlantillaPatologo
 from .forms import ExamenForm, PlantillaPatologoForm
 
 User = get_user_model()
 
-# --- VALIDACIONES DE ROLES ---
+
+# --- FUNCIONES DE UTILIDAD Y VALIDACIÓN DE ROLES ---
 def es_laboratorio(user):
     return user.groups.filter(name='Laboratorio').exists() or user.is_superuser
 
@@ -28,12 +30,18 @@ def es_patologo(user):
 def es_personal_autorizado(user):
     return user.groups.filter(name__in=['Laboratorio', 'Patólogo']).exists() or user.is_superuser
 
+def limpiar_rut(rut):
+    """Limpia el RUT removiendo puntos, guiones y espacios para búsquedas estandarizadas."""
+    if not rut:
+        return ""
+    return re.sub(r'[^0-9kK]', '', str(rut)).upper()
+
 
 # --- VISTAS DE LABORATORIO ---
 @login_required
 @user_passes_test(es_laboratorio, login_url='/usuarios/login/')
 def dashboard_laboratorio(request):
-    query = request.GET.get('q', '')
+    query = request.GET.get('q', '').strip()
     
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -60,21 +68,29 @@ def dashboard_laboratorio(request):
     muestras = Examen.objects.all().order_by('-fecha_recepcion')
     
     if query:
+        query_limpio = limpiar_rut(query)
         muestras = muestras.filter(
             Q(paciente__rut__icontains=query) |
+            Q(paciente__rut__icontains=query_limpio) |
             Q(paciente__nombre_completo__icontains=query) |
             Q(numero_correlativo__icontains=query)
         )
 
-    return render(request, 'biopsias/dashboard.html', {'muestras': muestras, 'query': query})
+    # Paginación a máximo 5 muestras por página
+    paginator = Paginator(muestras, 5)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'biopsias/dashboard.html', {
+        'muestras': page_obj,
+        'page_obj': page_obj,
+        'query': query
+    })
+
 
 @login_required
 @user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def registrar_biopsia(request):
-    """
-    Registra una nueva biopsia buscando si el paciente ya existe por su RUT
-    para evitar duplicidades y autocompletar, registrando el inicio en la cadena de custodia.
-    """
     if request.method == 'POST':
         form = ExamenForm(request.POST)
         if form.is_valid():
@@ -85,7 +101,6 @@ def registrar_biopsia(request):
             telefono = form.cleaned_data.get('telefono')
             email = form.cleaned_data.get('email')
 
-            # 1. Buscar o crear el paciente de forma única por RUT (Evita duplicados)
             paciente, created = Paciente.objects.get_or_create(
                 rut=rut,
                 defaults={
@@ -97,7 +112,6 @@ def registrar_biopsia(request):
                 }
             )
             
-            # Si el paciente ya existía, actualizamos datos si el usuario modificó algo en el form
             if not created:
                 paciente.nombre_completo = nombre_completo
                 if fecha_nacimiento: paciente.fecha_nacimiento = fecha_nacimiento
@@ -106,7 +120,6 @@ def registrar_biopsia(request):
                 if email: paciente.email = email
                 paciente.save()
 
-            # 2. Generar correlativo único para la muestra
             correlativo = f"BIO-{uuid.uuid4().hex[:6].upper()}"
             while Examen.objects.filter(numero_correlativo=correlativo).exists():
                 correlativo = f"BIO-{uuid.uuid4().hex[:6].upper()}"
@@ -117,7 +130,6 @@ def registrar_biopsia(request):
             examen.estado = 'Ingresada'
             examen.save()
 
-            # 3. REGISTRAR EN CADENA DE CUSTODIA (Punto de partida obligatorio)
             Comentario.objects.create(
                 examen=examen,
                 user=request.user,
@@ -137,46 +149,67 @@ def registrar_biopsia(request):
 @login_required
 @user_passes_test(es_patologo, login_url='/usuarios/login/')
 def dashboard_patologo(request):
-    query_historial = request.GET.get('q_historial', '')
+    query_historial = request.GET.get('q_historial', '').strip()
     
+    # 1. MANEJO DE POST (Chat y acciones rápidas)
     if request.method == 'POST':
         action = request.POST.get('action')
         examen_id = request.POST.get('examen_id')
-        muestra = get_object_or_404(Examen, id=examen_id)
+        
+        # En caso de que se pase el ID por URL o POST, se busca la muestra
+        if examen_id:
+            muestra = get_object_or_404(Examen, id=examen_id)
 
-        if action == 'enviar_chat':
-            mensaje = request.POST.get('mensaje', '').strip()
-            if mensaje:
-                Comentario.objects.create(
-                    examen=muestra, user=request.user, 
-                    comentario=mensaje, tipo='Mensaje / Consulta'
-                )
-                muestra.alerta_chat_laboratorio = True
+            if action == 'enviar_chat':
+                mensaje = request.POST.get('mensaje', '').strip()
+                if mensaje:
+                    Comentario.objects.create(
+                        examen=muestra, user=request.user, 
+                        comentario=mensaje, tipo='Mensaje / Consulta'
+                    )
+                    muestra.alerta_chat_laboratorio = True
+                    muestra.alerta_chat_patologo = False
+                    muestra.save()
+            
+            elif action == 'marcar_leido':
                 muestra.alerta_chat_patologo = False
                 muestra.save()
-        elif action == 'marcar_leido':
-            muestra.alerta_chat_patologo = False
-            muestra.save()
-            
+                
         return redirect('dashboard_patologo')
 
+    # 2. BANDEJA SUPERIOR: Muestras Pendientes (SIN PAGINAR)
+    # Mostramos todas las activas asignadas a él o sin asignar
     muestras_pendientes = Examen.objects.exclude(estado='Finalizado').filter(
         Q(patologo__isnull=True) | Q(patologo=request.user)
     ).order_by('-fecha_recepcion')
 
-    historial_examenes = Examen.objects.all().order_by('-fecha_recepcion')
+    # 3. BANDEJA INFERIOR: Historial General (PAGINADO)
+    historial_queryset = Examen.objects.all().order_by('-fecha_recepcion')
+    
     if query_historial:
-        historial_examenes = historial_examenes.filter(
+        query_limpio = limpiar_rut(query_historial)
+        historial_queryset = historial_queryset.filter(
             Q(paciente__rut__icontains=query_historial) |
+            Q(paciente__rut__icontains=query_limpio) |
             Q(paciente__nombre_completo__icontains=query_historial) |
             Q(numero_correlativo__icontains=query_historial)
         )
 
-    return render(request, 'biopsias/dashboard_patologo.html', {
-        'muestras_pendientes': muestras_pendientes,
-        'historial_examenes': historial_examenes,
+    # Configuración del paginador solo para el historial
+    # Lee el parámetro 'page' genérico que envían los botones del HTML
+    paginator = Paginator(historial_queryset, 5) # 5 registros por página
+    page_number = request.GET.get('page') 
+    historial_examenes = paginator.get_page(page_number)
+
+    # 4. RENDERIZADO AL TEMPLATE
+    context = {
+        'muestras_pendientes': muestras_pendientes, # Lista completa
+        'historial_examenes': historial_examenes, # Objeto paginado (Page)
         'query_historial': query_historial,
-    })
+    }
+    
+    return render(request, 'biopsias/dashboard_patologo.html', context)
+
 
 @login_required
 @user_passes_test(es_patologo, login_url='/usuarios/login/')
@@ -185,6 +218,8 @@ def asignar_patologo(request, examen_id):
         muestra = get_object_or_404(Examen, id=examen_id)
         if not muestra.patologo:
             muestra.patologo = request.user
+            if muestra.estado == 'Ingresada':
+                muestra.estado = 'En Evaluación'
             muestra.save()
             Comentario.objects.create(
                 examen=muestra, user=request.user,
@@ -196,11 +231,8 @@ def asignar_patologo(request, examen_id):
 
 # --- DETALLE Y EVALUACIÓN ---
 @login_required
+@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def detalle_muestra(request, examen_id):
-    """
-    Gestiona el detalle, la cadena de custodia completa y la acción de
-    reapertura por parte del administrador informando el motivo.
-    """
     muestra = get_object_or_404(Examen, id=examen_id)
     comentarios = muestra.comentarios.all().order_by('-created_at')
     
@@ -209,7 +241,6 @@ def detalle_muestra(request, examen_id):
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        # ACCIÓN 1: Reabrir informe bloqueado (Exclusivo Administrador con motivo)
         if action == 'reabrir_informe' and request.user.is_superuser:
             motivo = request.POST.get('motivo_apertura', '').strip()
             if motivo:
@@ -217,7 +248,6 @@ def detalle_muestra(request, examen_id):
                 muestra.estado = 'En Evaluación'
                 muestra.save()
                 
-                # Registrar obligatoriamente en la cadena de custodia
                 Comentario.objects.create(
                     examen=muestra,
                     user=request.user,
@@ -229,9 +259,8 @@ def detalle_muestra(request, examen_id):
                 messages.error(request, "Debe ingresar obligatoriamente un motivo para reabrir el informe.")
             return redirect('detalle_muestra', examen_id=muestra.id)
 
-        # ACCIÓN 2: Agregar comentarios / mensajes internos
         elif action == 'agregar_comentario':
-            texto = request.POST.get('comentario')
+            texto = request.POST.get('comentario', '').strip()
             if texto:
                 Comentario.objects.create(
                     examen=muestra,
@@ -239,37 +268,35 @@ def detalle_muestra(request, examen_id):
                     comentario=texto,
                     tipo='Nota interna'
                 )
-                messages.success(request, "Comentario agregado a la cronología.")
+                messages.success(request, "Comentario agregado a la cadena de custodia.")
             return redirect('detalle_muestra', examen_id=muestra.id)
             
-        # ACCIÓN 3: Actualizar diagnóstico y estados (Patólogo)
         elif es_patologo_user and action == 'actualizar_diagnostico':
             if muestra.informe_cerrado and not request.user.is_superuser:
                 messages.error(request, "El informe está cerrado y bloqueado por seguridad.")
                 return redirect('detalle_muestra', examen_id=muestra.id)
 
             nuevo_estado = request.POST.get('estado')
-            nota_medica = request.POST.get('nota')
+            nota_medica = request.POST.get('nota', '').strip()
             es_critico = request.POST.get('resultado_critico') == 'True'
             pin_ingresado = request.POST.get('pin_firma', '')
 
-            # Validación de PIN si se intenta finalizar
             if nuevo_estado == 'Finalizado' and muestra.estado != 'Finalizado':
-                if not request.user.pin_firma:
+                pin_usuario = getattr(request.user, 'pin_firma', None)
+                if not pin_usuario:
                     messages.error(request, "❌ Debe configurar su PIN de Firma Digital en 'Mi Perfil' antes de emitir un informe.")
                     return redirect('detalle_muestra', examen_id=muestra.id)
-                elif pin_ingresado != request.user.pin_firma:
+                elif pin_ingresado != pin_usuario:
                     messages.error(request, "❌ PIN de Firma Digital Incorrecto.")
                     return redirect('detalle_muestra', examen_id=muestra.id)
 
-            # Registrar cambio de estado en la cronología
             if nuevo_estado and nuevo_estado != muestra.estado:
                 estado_anterior = muestra.estado
                 muestra.estado = nuevo_estado
                 
                 if nuevo_estado == 'Finalizado':
                     muestra.informe_cerrado = True
-                    muestra.fecha_entrega = datetime.now().date()
+                    muestra.fecha_entrega = timezone.now().date()
                     
                 muestra.save()
                 Comentario.objects.create(
@@ -278,14 +305,12 @@ def detalle_muestra(request, examen_id):
                     tipo='Cambio de estado'
                 )
 
-            # Registrar marca de resultado crítico en la cronología
             if es_critico != muestra.resultado_critico:
                 muestra.resultado_critico = es_critico
                 muestra.save()
                 msg_critico = "ALERTA: Se marcó la muestra como RESULTADO CRÍTICO / URGENTE." if es_critico else "Se retiró la marca de resultado crítico."
                 Comentario.objects.create(examen=muestra, user=request.user, comentario=msg_critico, tipo='Alerta Médica')
 
-            # Registrar nota diagnóstica en la cronología
             if nota_medica:
                 Comentario.objects.create(
                     examen=muestra, user=request.user,
@@ -306,13 +331,14 @@ def detalle_muestra(request, examen_id):
 @user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def generar_informe_pdf(request, examen_id):
     muestra = get_object_or_404(Examen, id=examen_id)
-    diagnostico_final = muestra.comentarios.filter(tipo='Diagnóstico / Nota').order_by('-created_at').first()
+    diagnosticos = muestra.comentarios.filter(tipo='Diagnóstico / Nota').order_by('created_at')
     
     cadena_verificacion = f"{muestra.numero_correlativo}|{muestra.paciente.rut}|{muestra.updated_at}|{muestra.patologo.username if muestra.patologo else 'S/N'}"
     hash_verificacion = hashlib.sha256(cadena_verificacion.encode('utf-8')).hexdigest().upper()
 
     return render(request, 'biopsias/informe_pdf.html', {
-        'muestra': muestra, 'diagnostico': diagnostico_final,
+        'muestra': muestra,
+        'diagnosticos': diagnosticos,
         'hash_verificacion': hash_verificacion
     })
 
@@ -324,9 +350,13 @@ def lista_pacientes(request):
     query = request.GET.get('q', '').strip()
     pacientes = Paciente.objects.all().order_by('-created_at')
     if query:
-        pacientes = pacientes.filter(Q(rut__icontains=query) | Q(nombre_completo__icontains=query))
+        query_limpio = limpiar_rut(query)
+        pacientes = pacientes.filter(
+            Q(rut__icontains=query) | Q(rut__icontains=query_limpio) | Q(nombre_completo__icontains=query)
+        )
     pacientes = pacientes.annotate(total_biopsias=Count('examenes'))
     return render(request, 'biopsias/lista_pacientes.html', {'pacientes': pacientes, 'query': query})
+
 
 @login_required
 @user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
@@ -338,6 +368,7 @@ def detalle_paciente(request, paciente_id):
 
 # --- HISTORIAL Y ESTADÍSTICAS ---
 @login_required
+@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def historial_filtrado(request):
     examenes = Examen.objects.all().order_by('-fecha_recepcion')
     q = request.GET.get('q', '').strip()
@@ -346,7 +377,12 @@ def historial_filtrado(request):
     estado = request.GET.get('estado', '')
     tipo_examen_id = request.GET.get('tipo_examen', '')
 
-    if q: examenes = examenes.filter(Q(paciente__rut__icontains=q) | Q(paciente__nombre_completo__icontains=q) | Q(numero_correlativo__icontains=q))
+    if q:
+        q_limpio = limpiar_rut(q)
+        examenes = examenes.filter(
+            Q(paciente__rut__icontains=q) | Q(paciente__rut__icontains=q_limpio) |
+            Q(paciente__nombre_completo__icontains=q) | Q(numero_correlativo__icontains=q)
+        )
     if fecha_inicio: examenes = examenes.filter(fecha_recepcion__gte=fecha_inicio)
     if fecha_fin: examenes = examenes.filter(fecha_recepcion__lte=fecha_fin)
     if estado: examenes = examenes.filter(estado=estado)
@@ -359,7 +395,9 @@ def historial_filtrado(request):
         'estado_sel': estado, 'tipo_sel': tipo_examen_id,
     })
 
+
 @login_required
+@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def dashboard_estadisticas(request):
     total_biopsias = Examen.objects.count()
     total_finalizadas = Examen.objects.filter(estado='Finalizado').count()
@@ -393,10 +431,12 @@ def dashboard_estadisticas(request):
         'labels_meses': labels_meses, 'data_meses': data_meses,
     })
 
+
 @login_required
+@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def exportar_excel(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-    filename = f"Reporte_Biopsias_Biogest_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+    filename = f"Reporte_Biopsias_Biogest_{timezone.now().strftime('%Y%m%d_%H%M')}.csv"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     writer = csv.writer(response, delimiter=';')
@@ -430,13 +470,13 @@ def mis_plantillas(request):
     return render(request, 'biopsias/mis_plantillas.html', {'plantillas': plantillas, 'form': form})
 
 
-# --- ENDPOINTS AJAX ---
+# --- ENDPOINTS AJAX / API ---
 @login_required
+@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def buscar_paciente_por_rut(request, rut):
-
+    rut_limpio = limpiar_rut(rut)
     try:
-        paciente = Paciente.objects.get(rut=rut)
-        
+        paciente = Paciente.objects.filter(Q(rut=rut) | Q(rut=rut_limpio)).first()
         if paciente:
             return JsonResponse({
                 'encontrado': True,
@@ -451,7 +491,9 @@ def buscar_paciente_por_rut(request, rut):
         
     return JsonResponse({'encontrado': False})
 
+
 @login_required
+@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def api_check_pendientes(request):
     if es_patologo(request.user):
         muestras = Examen.objects.exclude(estado='Finalizado').filter(Q(patologo__isnull=True) | Q(patologo=request.user))
@@ -461,7 +503,9 @@ def api_check_pendientes(request):
         return JsonResponse({'muestras': [{'id': m.id, 'alerta_chat': m.alerta_chat_laboratorio} for m in muestras]})
     return JsonResponse({'muestras': []})
 
+
 @login_required
+@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def api_chat_examen(request, examen_id):
     muestra = get_object_or_404(Examen, id=examen_id)
     
@@ -483,7 +527,6 @@ def api_chat_examen(request, examen_id):
                 comentario=mensaje_texto,
                 tipo='Chat Interno'
             )
-            # Si escribe el patólogo, alerta al lab (y viceversa)
             if request.user.groups.filter(name='Patólogo').exists():
                 muestra.alerta_chat_laboratorio = True
             else:
@@ -491,21 +534,22 @@ def api_chat_examen(request, examen_id):
             muestra.save()
             return JsonResponse({'status': 'ok'})
 
-    # GET: Cargar mensajes (Muestra el nombre real del usuario)
     mensajes_db = muestra.comentarios.filter(tipo='Chat Interno').order_by('created_at')
     data = []
     for msg in mensajes_db:
         data.append({
             'id': msg.id,
             'texto': msg.comentario,
-            'usuario': msg.user.get_full_name() or msg.user.username, # <--- Nombre real
+            'usuario': msg.user.get_full_name() or msg.user.username,
             'fecha': msg.created_at.strftime('%d/%m %H:%M'),
             'es_mio': msg.user == request.user
         })
         
     return JsonResponse({'mensajes': data})
 
+
 @login_required
+@user_passes_test(es_patologo, login_url='/usuarios/login/')
 def api_obtener_plantillas(request, tipo_examen_id):
     plantillas = PlantillaPatologo.objects.filter(patologo=request.user, tipo_examen_id=tipo_examen_id).values('id', 'titulo', 'texto_predefinido')
     return JsonResponse({'plantillas': list(plantillas)})
@@ -514,38 +558,5 @@ def api_obtener_plantillas(request, tipo_examen_id):
 @login_required
 @user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def etiqueta_frasco(request, examen_id):
-    """ Genera la vista HTML pura de la etiqueta para impresión térmica """
     muestra = get_object_or_404(Examen, id=examen_id)
     return render(request, 'biopsias/etiqueta_qr.html', {'muestra': muestra})
-
-
-
-@login_required
-@user_passes_test(es_patologo, login_url='/usuarios/login/')
-def tomar_muestra(request):
-    """ Muestra las biopsias recién ingresadas para que el patólogo se las asigne """
-    # Buscar solo muestras en estado 'Ingresada'
-    muestras_disponibles = Examen.objects.filter(estado='Ingresada').order_by('fecha_recepcion', 'id')
-    
-    if request.method == 'POST':
-        muestra_id = request.POST.get('muestra_id')
-        muestra = get_object_or_404(Examen, id=muestra_id)
-        
-        # Validación de seguridad: evitar doble asignación
-        if muestra.estado == 'Ingresada':
-            muestra.patologo = request.user
-            muestra.estado = 'En Evaluación'
-            muestra.save()
-            
-            Comentario.objects.create(
-                examen=muestra,
-                user=request.user,
-                comentario="El patólogo ha tomado el caso para evaluación.",
-                tipo='Asignación Médica'
-            )
-            messages.success(request, f"¡Muestra {muestra.numero_correlativo} asignada a su bandeja!")
-            return redirect('dashboard_patologo')
-        else:
-            messages.error(request, "Esta muestra ya fue tomada por otro patólogo.")
-            
-    return render(request, 'biopsias/tomar_muestra.html', {'muestras': muestras_disponibles})
