@@ -1,45 +1,12 @@
 # biopsias/utils.py
-import os
 import hashlib
-from io import BytesIO
-from django.conf import settings
 from django.core.mail import EmailMessage
-from django.template.loader import get_template
-from xhtml2pdf import pisa
+from django.conf import settings
+from django.template.loader import render_to_string
+from weasyprint import HTML
 
-def link_callback(uri, rel):
-    """
-    Traduce las URLs de las imágenes (ej: /media/firmas/firma.jpg) a rutas físicas
-    reales del disco duro (ej: C:/Proyectos/.../media/firmas/firma.jpg) para que
-    xhtml2pdf pueda incrustarlas en el documento.
-    """
-    # Si es una URL de internet, ignorarla
-    if uri.startswith('http://') or uri.startswith('https://'):
-        return uri
-
-    # Buscar la ruta de la carpeta MEDIA (donde guardas las firmas)
-    media_root = getattr(settings, 'MEDIA_ROOT', '')
-    media_url = getattr(settings, 'MEDIA_URL', '/media/')
-
-    # Limpiamos la URI para unirla con la ruta física
-    if uri.startswith(media_url):
-        uri_clean = uri.replace(media_url, "", 1)
-    else:
-        uri_clean = uri.lstrip('/')
-        
-    path = os.path.join(media_root, uri_clean)
-
-    # Si el archivo existe físicamente, retornamos la ruta absoluta
-    if os.path.isfile(path):
-        return path
-    
-    # Si no la encuentra, imprimimos una alerta en consola para avisarte
-    print(f"⚠️ xhtml2pdf no encontró la imagen en: {path}")
-    return uri
-
-
-def generar_pdf_en_memoria(examen):
-    """Convierte el HTML del informe a un archivo PDF en la memoria del servidor"""
+def generar_pdf_en_memoria(examen, request):
+    """Convierte el HTML moderno a PDF usando WeasyPrint"""
     diagnosticos = examen.comentarios.filter(tipo='Diagnóstico / Nota').order_by('created_at')
     
     cadena_verificacion = f"{examen.numero_correlativo}|{examen.paciente.rut}|{examen.updated_at}|{examen.patologo.username if examen.patologo else 'S/N'}"
@@ -51,25 +18,20 @@ def generar_pdf_en_memoria(examen):
         'hash_verificacion': hash_verificacion
     }
     
-    template = get_template('biopsias/informe_pdf.html')
-    html = template.render(context)
+    # Renderizamos tu HTML intacto (el que tiene Tailwind, FontAwesome y Flexbox)
+    html_string = render_to_string('biopsias/informe_pdf.html', context)
     
-    # SOLUCIÓN ERROR 1: Eliminar FontAwesome del string HTML porque xhtml2pdf no soporta CSS moderno.
-    # (Al eliminarlo solo de esta variable 'html', no afectará tu vista web normal).
-    html = html.replace('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">', '')
+    # Construimos la URL base (http://127.0.0.1:8000) para que WeasyPrint pueda descargar la firma local
+    base_url = request.build_absolute_uri('/') if request else 'http://127.0.0.1:8000'
     
-    result = BytesIO()
+    # Magia: Generamos el PDF
+    pdf_bytes = HTML(string=html_string, base_url=base_url).write_pdf()
     
-    # SOLUCIÓN ERROR 2: Pasamos la función 'link_callback' para que traduzca las rutas de las firmas.
-    pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result, link_callback=link_callback)
-    
-    if not pdf.err:
-        return result.getvalue()
-    return None
+    return pdf_bytes
 
 
-def enviar_informe_por_correo(examen, email_destino):
-    asunto = f"Informe de Biopsia Finalizado - {examen.numero_correlativo}"
+def enviar_informe_por_correo(examen, email_destino, request):
+    asunto = f"Informe Histopatológico Finalizado - {examen.numero_correlativo}"
     
     cuerpo_html = f"""
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
@@ -92,8 +54,10 @@ def enviar_informe_por_correo(examen, email_destino):
     )
     email.content_subtype = "html"
 
-    print(f"----> Generando PDF para {examen.numero_correlativo}...")
-    pdf_bytes = generar_pdf_en_memoria(examen)
+    print(f"----> Generando PDF moderno para {examen.numero_correlativo}...")
+    
+    # IMPORTANTE: Pasamos el 'request' aquí
+    pdf_bytes = generar_pdf_en_memoria(examen, request)
     
     if pdf_bytes:
         email.attach(f"Informe_{examen.numero_correlativo}.pdf", pdf_bytes, 'application/pdf')

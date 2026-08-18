@@ -164,7 +164,7 @@ def dashboard_patologo(request):
                 
                 if email_destino:
                     try:
-                        enviar_informe_por_correo(muestra, email_destino)
+                        enviar_informe_por_correo(muestra, email_destino,request)
                         messages.success(request, f'✓ Informe {muestra.numero_correlativo} enviado exitosamente a {email_destino}.')
                     except Exception as e:
                         messages.error(request, f'✕ Error al enviar el correo: {e}')
