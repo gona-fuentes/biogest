@@ -4,7 +4,6 @@ env/
 
 # Python
 __pycache__/
-*.pyc
 
 # Base de datos local de Django
 db.sqlite3
