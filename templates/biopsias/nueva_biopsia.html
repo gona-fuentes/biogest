@@ -1,188 +1,303 @@
 {% extends 'base.html' %}
 
-{% block title %}Registrar Muestra - Biogest{% endblock %}
+{% block title %}Ingresar Nueva Biopsia - Biogest{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto space-y-6">
+<div class="max-w-7xl mx-auto">
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
 
-    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
-            <i class="fa-solid fa-file-circle-plus text-clinica"></i> Registro de Nueva Biopsia
-        </h1>
-        <p class="text-sm text-gray-500 mt-1">Ingrese el RUT del paciente. Si ya existe en el sistema, los datos se autocompletarán.</p>
-    </div>
+        <div class="bg-gradient-to-r from-emerald-800 to-slate-900 px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 p-2.5 rounded-lg text-emerald-300">
+                    <i class="fa-solid fa-microscope text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white tracking-wide">Registro de Nueva Muestra</h1>
+                    <p class="text-emerald-100 text-[11px] font-medium mt-0.5">Complete los datos clínicos para ingresar la biopsia a la cadena de custodia</p>
+                </div>
+            </div>
+            <a href="{% url 'dashboard' %}" class="text-white/90 hover:text-white text-xs font-bold transition flex items-center gap-2 bg-white/10 hover:bg-white/25 px-4 py-2 rounded-lg backdrop-blur-sm">
+                <i class="fa-solid fa-arrow-left"></i> Volver al Panel
+            </a>
+        </div>
 
-    <div class="bg-white rounded-lg shadow-md border-t-4 border-patologia overflow-hidden p-6 md:p-8">
-        <form method="POST" class="space-y-8">
+        <form method="POST" action="{% url 'registrar_biopsia' %}" class="p-6 md:p-8 bg-slate-50/50">
             {% csrf_token %}
-            
-            <div>
-                <h3 class="text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-user-injured text-gray-400"></i> 1. Identificación del Paciente
-                </h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                <div class="space-y-4">
+                    <h2 class="text-sm font-black text-slate-800 border-b-2 border-emerald-500/30 pb-2 mb-5 flex items-center gap-2 uppercase tracking-wider">
+                        <i class="fa-solid fa-user-injured text-emerald-600 text-lg"></i> Ficha del Paciente
+                    </h2>
+
                     <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.rut.label }}</label>
-                        {{ form.rut }}
-                        <span id="rut-status" class="text-[10px] font-bold mt-1 text-emerald-600 hidden"><i class="fa-solid fa-check-circle"></i> Paciente Encontrado</span>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">RUT / Identificación</label>
+                        <div class="relative">
+                            {{ form.rut }}
+                            <div id="rut-status" class="absolute right-3 top-2.5"></div>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1 italic">Ej: 12.345.678-8</p>
+                        {{ form.rut.errors }}
                     </div>
-                    
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.nombre_completo.label }}</label>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Nombre Completo</label>
                         {{ form.nombre_completo }}
+                        {{ form.nombre_completo.errors }}
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.fecha_nacimiento.label }}</label>
-                        {{ form.fecha_nacimiento }}
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">F. Nacimiento</label>
+                            {{ form.fecha_nacimiento }}
+                            {{ form.fecha_nacimiento.errors }}
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Sexo</label>
+                            {{ form.sexo }}
+                            {{ form.sexo.errors }}
+                        </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.sexo.label }}</label>
-                        {{ form.sexo }}
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.telefono.label }}</label>
-                        {{ form.telefono }}
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.email.label }}</label>
-                        {{ form.email }}
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Teléfono</label>
+                            {{ form.telefono }}
+                            {{ form.telefono.errors }}
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Correo</label>
+                            {{ form.email }}
+                            {{ form.email.errors }}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div>
-                <h3 class="text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-vial-circle-check text-gray-400"></i> 2. Detalle Médico y de la Muestra
-                </h3>
+                <div class="space-y-4">
+                    <h2 class="text-sm font-black text-slate-800 border-b-2 border-blue-500/30 pb-2 mb-5 flex items-center gap-2 uppercase tracking-wider">
+                        <i class="fa-solid fa-vial-circle-check text-blue-600 text-lg"></i> Datos de la Biopsia
+                    </h2>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.tipo_examen.label }}</label>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Tipo de Examen</label>
                         {{ form.tipo_examen }}
+                        {{ form.tipo_examen.errors }}
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.medico_solicitante.label }}</label>
-                        {{ form.medico_solicitante }}
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.fecha_toma.label }}</label>
-                        {{ form.fecha_toma }}
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.fecha_recepcion.label }}</label>
-                        {{ form.fecha_recepcion }}
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.cantidad_muestras.label }}</label>
-                        {{ form.cantidad_muestras }}
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.numero_fragmentos.label }}</label>
-                        {{ form.numero_fragmentos }}
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ form.laboratorio.label }}</label>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Laboratorio de Origen</label>
                         {{ form.laboratorio }}
+                        {{ form.laboratorio.errors }}
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Fecha de Toma</label>
+                            {{ form.fecha_toma }}
+                            {{ form.fecha_toma.errors }}
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Fecha Recepción</label>
+                            {{ form.fecha_recepcion }}
+                            {{ form.fecha_recepcion.errors }}
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Cant. Muestras</label>
+                            {{ form.cantidad_muestras }}
+                            {{ form.cantidad_muestras.errors }}
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Fragmentos</label>
+                            {{ form.numero_fragmentos }}
+                            {{ form.numero_fragmentos.errors }}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {% if form.errors %}
-                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
-                    <p class="text-sm text-red-700 font-bold">Revise los siguientes errores:</p>
-                    {{ form.errors }}
+                <div class="space-y-4">
+                    <h2 class="text-sm font-black text-slate-800 border-b-2 border-amber-500/30 pb-2 mb-5 flex items-center gap-2 uppercase tracking-wider">
+                        <i class="fa-solid fa-user-doctor text-amber-500 text-lg"></i> Médico Solicitante
+                    </h2>
+
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        
+                        <div class="flex p-1 bg-slate-100 rounded-lg mb-5 border border-slate-200">
+                            <label class="flex-1 text-center cursor-pointer relative">
+                                <input type="radio" name="tipo_medico" value="existente" checked onchange="toggleMedico(this.value)" class="peer sr-only">
+                                <div class="py-2 text-[11px] font-bold text-slate-500 uppercase rounded-md peer-checked:bg-white peer-checked:text-emerald-700 peer-checked:shadow-sm transition-all">
+                                    <i class="fa-solid fa-magnifying-glass"></i> Existente
+                                </div>
+                            </label>
+                            <label class="flex-1 text-center cursor-pointer relative">
+                                <input type="radio" name="tipo_medico" value="nuevo" onchange="toggleMedico(this.value)" class="peer sr-only">
+                                <div class="py-2 text-[11px] font-bold text-slate-500 uppercase rounded-md peer-checked:bg-white peer-checked:text-emerald-700 peer-checked:shadow-sm transition-all">
+                                    <i class="fa-solid fa-plus"></i> Nuevo
+                                </div>
+                            </label>
+                        </div>
+
+                        <div id="div_medico_existente">
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Buscar Médico en Base de Datos</label>
+                            <select name="medico_existente" id="select-medico" placeholder="Escriba para buscar..." class="w-full text-xs">
+                                <option value="">-- Seleccione un médico --</option>
+                                {% for medico in medicos %}
+                                    <option value="{{ medico.id }}">{{ medico.nombre }} {% if medico.email %}({{ medico.email }}){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div id="div_medico_nuevo" class="hidden space-y-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-emerald-700 uppercase mb-1">Nombre del Médico Nuevo</label>
+                                <input type="text" name="nuevo_medico_nombre" placeholder="Ej: Dr. Juan Pérez" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-emerald-600 focus:border-emerald-600 text-xs transition-colors shadow-sm">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-emerald-700 uppercase mb-1">Correo para enviar PDF</label>
+                                <input type="email" name="nuevo_medico_email" placeholder="medico@clinica.cl" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-emerald-600 focus:border-emerald-600 text-xs transition-colors shadow-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50/70 p-4 rounded-xl border border-blue-100 flex items-start gap-3 mt-4">
+                        <i class="fa-solid fa-circle-info text-blue-500 mt-0.5"></i>
+                        <p class="text-[11px] text-slate-600 leading-relaxed font-medium">
+                            El informe histopatológico final será enviado automáticamente en formato PDF firmado al correo del profesional solicitante.
+                        </p>
+                    </div>
                 </div>
-            {% endif %}
 
-            <div class="pt-4 border-t border-gray-100 flex justify-end">
-                <button type="submit" class="bg-clinica hover:bg-gray-900 text-white font-bold py-2.5 px-6 rounded-md transition shadow flex items-center gap-2">
-                    <i class="fa-solid fa-save"></i> Registrar e Ingresar Muestra
-                </button>
             </div>
+
+            <div class="mt-8 pt-5 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                <p class="text-[11px] text-slate-400 font-medium uppercase tracking-wider">
+                    <i class="fa-solid fa-shield-halved text-emerald-600 mr-1"></i> Formulario bajo conexión segura
+                </p>
+                <div class="flex w-full md:w-auto gap-3">
+                    <a href="{% url 'dashboard' %}" class="w-full md:w-auto text-center px-6 py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors shadow-sm uppercase">
+                        Cancelar
+                    </a>
+                    <button type="submit" class="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 rounded-lg shadow-md hover:shadow-lg transition-all uppercase tracking-wide">
+                        <i class="fa-solid fa-file-medical"></i> Registrar Biopsia
+                    </button>
+                </div>
+            </div>
+
         </form>
     </div>
 </div>
 
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
+<style>
+    /* Estilizar el buscador TomSelect para que encaje con Tailwind */
+    .ts-control {
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        border-color: #cbd5e1;
+        font-size: 0.75rem; /* text-xs */
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .ts-control.focus {
+        border-color: #059669; /* emerald-600 */
+        box-shadow: 0 0 0 1px #059669;
+    }
+    /* Estilos automáticos para los errores de Django */
+    ul.errorlist {
+        margin-top: 6px;
+        color: #ef4444; /* red-500 */
+        font-size: 10px;
+        font-weight: 700;
+        background-color: #fef2f2;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border-left: 2px solid #ef4444;
+    }
+    ul.errorlist li::before {
+        content: "⚠️ ";
+    }
+</style>
+
 <script>
+    // 1. INICIALIZAR EL BUSCADOR DE MÉDICOS
+    let medicoSelect = new TomSelect("#select-medico",{
+        create: false,
+        sortField: { field: "text", direction: "asc" }
+    });
+
+    // 2. FUNCIÓN PARA INTERCAMBIAR EL MODO DE MÉDICO
+    function toggleMedico(valor) {
+        if (valor === 'existente') {
+            document.getElementById('div_medico_existente').classList.remove('hidden');
+            document.getElementById('div_medico_nuevo').classList.add('hidden');
+            document.querySelector('input[name="nuevo_medico_nombre"]').value = '';
+            document.querySelector('input[name="nuevo_medico_email"]').value = '';
+        } else {
+            document.getElementById('div_medico_existente').classList.add('hidden');
+            document.getElementById('div_medico_nuevo').classList.remove('hidden');
+            medicoSelect.clear(); 
+        }
+    }
+
+   // 3. AUTOCOMPLETADO DE PACIENTES Y FORMATEO DE RUT EN TIEMPO REAL
     document.addEventListener("DOMContentLoaded", function() {
         const rutInput = document.getElementById('id_rut');
-        const statusSpan = document.getElementById('rut-status');
+        const statusDiv = document.getElementById('rut-status');
+        
+        // Función para formatear el RUT con puntos y guion automáticamente
+        function formatearRUT(valor) {
+            // Deja solo números y la letra K (mayúscula o minúscula)
+            let rut = valor.replace(/[^0-9kK]/g, '').toUpperCase();
+            if (rut.length <= 1) return rut;
+            
+            // Separa el cuerpo del dígito verificador
+            let cuerpo = rut.slice(0, -1);
+            let dv = rut.slice(-1);
+            
+            // Agrega los puntos cada 3 números al cuerpo
+            cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            
+            return cuerpo + "-" + dv;
+        }
 
-        if (rutInput) {
-            // Función para formatear el RUT dinámicamente (XX.XXX.XXX-X)
-            function formatRUT(value) {
-                // Remover todo lo que no sea número o la letra K/k
-                let cleanValue = value.replace(/[^0-9kK]/g, '').toUpperCase();
-                
-                if (cleanValue.length === 0) return "";
+        if(rutInput && statusDiv) {
+            rutInput.placeholder = "12.345.678-9";
 
-                let cuerpo = cleanValue.slice(0, -1);
-                let dv = cleanValue.slice(-1);
-
-                if (cuerpo.length === 0) {
-                    return dv;
-                }
-
-                // Aplicar puntos de miles al cuerpo
-                let formattedCuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                
-                return `${formattedCuerpo}-${dv}`;
-            }
-
-            // Evento mientras el usuario escribe
+            // Evento 1: Mientras el usuario teclea, se formatea automáticamente
             rutInput.addEventListener('input', function(e) {
-                let cursorPosition = this.selectionStart;
-                let oldLength = this.value.length;
-                
-                this.value = formatRUT(this.value);
-                
-                // Ajustar la posición del cursor de forma amigable
-                let newLength = this.value.length;
-                cursorPosition += (newLength - oldLength);
-                this.setSelectionRange(cursorPosition, cursorPosition);
+                this.value = formatearRUT(this.value);
             });
 
-            // Evento al perder el foco (blur) para buscar en la API
+            // Evento 2: Cuando el usuario sale del campo (blur), busca al paciente
             rutInput.addEventListener('blur', function() {
-                const rut = this.value.trim();
-                
-                if (rut.length > 5) {
-                    // Llamada a la API con la nueva estructura de URLs
+                let rut = this.value.trim();
+                if(rut) {
+                    statusDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-emerald-600 text-sm"></i>';
+                    
                     fetch(`/biopsias/api/paciente/${rut}/`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.encontrado) {
-                                // Rellenar campos
-                                document.getElementById('id_nombre_completo').value = data.nombre_completo || '';
-                                document.getElementById('id_email').value = data.email || '';
-                                document.getElementById('id_telefono').value = data.telefono || '';
-                                document.getElementById('id_sexo').value = data.sexo || '';
-                                
-                                if (data.fecha_nacimiento) {
-                                    document.getElementById('id_fecha_nacimiento').value = data.fecha_nacimiento;
-                                }
-
-                                // Mostrar mensaje visual de éxito
-                                statusSpan.classList.remove('hidden');
-                                rutInput.classList.add('border-emerald-500', 'bg-emerald-50');
-                            } else {
-                                // Ocultar mensaje si no existe o se cambió de RUT
-                                statusSpan.classList.add('hidden');
-                                rutInput.classList.remove('border-emerald-500', 'bg-emerald-50');
-                            }
-                        })
-                        .catch(error => console.error('Error buscando RUT:', error));
+                    .then(response => response.json())
+                    .then(data => {
+                        if(data.encontrado) {
+                            if(document.getElementById('id_nombre_completo')) document.getElementById('id_nombre_completo').value = data.nombre_completo;
+                            if(document.getElementById('id_fecha_nacimiento')) document.getElementById('id_fecha_nacimiento').value = data.fecha_nacimiento;
+                            if(document.getElementById('id_sexo')) document.getElementById('id_sexo').value = data.sexo;
+                            if(document.getElementById('id_telefono')) document.getElementById('id_telefono').value = data.telefono;
+                            if(document.getElementById('id_email')) document.getElementById('id_email').value = data.email;
+                            
+                            statusDiv.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500 text-lg" title="Paciente encontrado"></i>';
+                        } else {
+                            statusDiv.innerHTML = '<span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-md"><i class="fa-solid fa-user-plus mr-1"></i>Nuevo</span>';
+                        }
+                        
+                        setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
+                    })
+                    .catch(() => {
+                        statusDiv.innerHTML = '';
+                    });
                 }
             });
         }

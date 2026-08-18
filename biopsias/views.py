@@ -14,9 +14,11 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 # IMPORTACIONES LIMPIAS DE LA APP
-from .models import Examen, Comentario, TipoExamen, Paciente, PlantillaPatologo
+from .models import Examen, Comentario, TipoExamen, Paciente, PlantillaPatologo, Medico
 from .forms import ExamenForm, PlantillaPatologoForm
 from .utils import enviar_informe_por_correo
+import uuid
+from django.contrib import messages
 User = get_user_model()
 
 
@@ -65,39 +67,58 @@ def dashboard(request):
 
 
 
-
 @login_required
 @user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def registrar_biopsia(request):
     if request.method == 'POST':
-        form = ExamenForm(request.POST)
-        if form.is_valid():
-            rut = form.cleaned_data.get('rut')
-            nombre_completo = form.cleaned_data.get('nombre_completo')
-            fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
-            sexo = form.cleaned_data.get('sexo')
-            telefono = form.cleaned_data.get('telefono')
-            email = form.cleaned_data.get('email')
+        # 1. Hacemos una copia de los datos enviados para poder inyectarle el médico
+        datos_post = request.POST.copy()
 
+        # 2. RESOLVER EL MÉDICO SOLICITANTE ANTES DE VALIDAR
+        tipo_medico = datos_post.get('tipo_medico')
+        
+        if tipo_medico == 'nuevo':
+            nuevo_nombre = datos_post.get('nuevo_medico_nombre', '').strip()
+            nuevo_email = datos_post.get('nuevo_medico_email', '').strip()
+            
+            if nuevo_nombre:
+                # Lo creamos al vuelo en la base de datos
+                medico_obj, created = Medico.objects.get_or_create(
+                    nombre=nuevo_nombre,
+                    defaults={'email': nuevo_email if nuevo_email else None}
+                )
+                # ¡Truco! Le pasamos el ID recién creado al campo que Django está esperando
+                datos_post['medico_solicitante'] = medico_obj.id
+        else:
+            # Si eligió uno de la lista, tomamos ese ID
+            datos_post['medico_solicitante'] = datos_post.get('medico_existente')
+
+        # 3. Le entregamos los datos REPARADOS al formulario
+        form = ExamenForm(datos_post)
+        
+        # 4. AHORA SÍ: Django validará que TODOS los campos vengan llenos
+        if form.is_valid():
+            
+            # Guardar Paciente
             paciente, created = Paciente.objects.get_or_create(
-                rut=rut,
+                rut=form.cleaned_data.get('rut'),
                 defaults={
-                    'nombre_completo': nombre_completo,
-                    'fecha_nacimiento': fecha_nacimiento,
-                    'sexo': sexo,
-                    'telefono': telefono,
-                    'email': email
+                    'nombre_completo': form.cleaned_data.get('nombre_completo'),
+                    'fecha_nacimiento': form.cleaned_data.get('fecha_nacimiento'),
+                    'sexo': form.cleaned_data.get('sexo'),
+                    'telefono': form.cleaned_data.get('telefono'),
+                    'email': form.cleaned_data.get('email')
                 }
             )
-            
             if not created:
-                paciente.nombre_completo = nombre_completo
-                if fecha_nacimiento: paciente.fecha_nacimiento = fecha_nacimiento
-                if sexo: paciente.sexo = sexo
-                if telefono: paciente.telefono = telefono
-                if email: paciente.email = email
+                paciente.nombre_completo = form.cleaned_data.get('nombre_completo')
+                paciente.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
+                paciente.sexo = form.cleaned_data.get('sexo')
+                paciente.telefono = form.cleaned_data.get('telefono')
+                paciente.email = form.cleaned_data.get('email')
                 paciente.save()
 
+            # Guardar Biopsia
             correlativo = f"BIO-{uuid.uuid4().hex[:6].upper()}"
             while Examen.objects.filter(numero_correlativo=correlativo).exists():
                 correlativo = f"BIO-{uuid.uuid4().hex[:6].upper()}"
@@ -117,15 +138,17 @@ def registrar_biopsia(request):
 
             messages.success(request, f"Biopsia {correlativo} registrada e ingresada al sistema con éxito.")
             return redirect('dashboard')
+        else:
+            # Si faltó algún campo (como el médico, fecha, rut, etc.), mostrará un error global
+            messages.error(request, "✕ Faltan campos obligatorios. Revise el formulario y asegúrese de asignar al Médico Solicitante.")
+            
     else:
         form = ExamenForm()
     
-    return render(request, 'biopsias/nueva_biopsia.html', {'form': form})
+    medicos = Medico.objects.all().order_by('nombre')
+    return render(request, 'biopsias/nueva_biopsia.html', {'form': form, 'medicos': medicos})
 
 
-# --- VISTAS DE PATÓLOGO ---
-
-# --- VISTAS DE PATÓLOGO ---
 @login_required
 @user_passes_test(es_patologo, login_url='/usuarios/login/')
 def dashboard_patologo(request):
@@ -155,21 +178,20 @@ def dashboard_patologo(request):
                 muestra.save()
                 
             elif action == 'enviar_correo':
-                # Buscar correo de destino (laboratorio o paciente)
+                # Buscar correo EXCLUSIVAMENTE del Médico Solicitante
                 email_destino = None
-                if hasattr(muestra, 'laboratorio') and muestra.laboratorio and muestra.laboratorio.email:
-                    email_destino = muestra.laboratorio.email
-                elif muestra.paciente and muestra.paciente.email:
-                    email_destino = muestra.paciente.email
+                if muestra.medico_solicitante and muestra.medico_solicitante.email:
+                    email_destino = muestra.medico_solicitante.email
                 
                 if email_destino:
                     try:
-                        enviar_informe_por_correo(muestra, email_destino,request)
-                        messages.success(request, f'✓ Informe {muestra.numero_correlativo} enviado exitosamente a {email_destino}.')
+                        # Pasamos request para que WeasyPrint pueda leer la firma local
+                        enviar_informe_por_correo(muestra, email_destino, request)
+                        messages.success(request, f'✓ Informe {muestra.numero_correlativo} enviado a Dr(a). {muestra.medico_solicitante.nombre} ({email_destino}).')
                     except Exception as e:
                         messages.error(request, f'✕ Error al enviar el correo: {e}')
                 else:
-                    messages.error(request, f'✕ No se encontró una dirección de correo configurada para la muestra {muestra.numero_correlativo}.')
+                    messages.error(request, f'✕ El Médico Solicitante de la muestra {muestra.numero_correlativo} no tiene un correo registrado o no existe.')
 
         return redirect('dashboard_patologo')
 

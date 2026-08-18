@@ -1,157 +1,198 @@
 {% extends 'base.html' %}
 
-{% block title %}Métricas y Reportes - Biogest{% endblock %}
+{% block title %}Métricas y Estadísticas - Biogest{% endblock %}
 
 {% block content %}
 <div class="space-y-8">
 
-    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <div>
             <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                <i class="fa-solid fa-chart-line text-clinica"></i> Indicadores y Estadísticas de Calidad
+                <i class="fa-solid fa-chart-line text-clinica"></i> Panel Analítico y Métricas
             </h1>
-            <p class="text-sm text-gray-500">Métricas en tiempo real para auditorías y MINSAL.</p>
+            <p class="text-xs text-gray-500 mt-1">Monitoreo de tiempos de respuesta, carga asistencial y hallazgos críticos.</p>
         </div>
-        <a href="{% url 'exportar_excel' %}" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-5 rounded-md transition shadow flex items-center gap-2">
-            <i class="fa-solid fa-file-excel text-lg"></i> Exportar Base Completa a Excel
+        <a href="{% url 'exportar_excel' %}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm transition shadow-md flex items-center gap-2">
+            <i class="fa-solid fa-file-excel"></i> Exportar Reporte CSV / Excel
         </a>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-clinica">
-            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Biopsias</span>
-            <span class="text-3xl font-black text-gray-800">{{ total_biopsias }}</span>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-emerald-600 border-gray-200 flex items-center justify-between">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase text-gray-400 tracking-wider">Total Muestras</p>
+                <h3 class="text-2xl font-black text-gray-800 mt-1">{{ total_biopsias }}</h3>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 text-lg">
+                <i class="fa-solid fa-vials"></i>
+            </div>
         </div>
 
-        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-patologia">
-            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">TAT Promedio (Entrega)</span>
-            <span class="text-3xl font-black text-emerald-600">{{ tat_promedio_dias }} <span class="text-xs font-semibold text-gray-500">días</span></span>
+        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-blue-600 border-gray-200 flex items-center justify-between">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase text-gray-400 tracking-wider">Finalizadas</p>
+                <h3 class="text-2xl font-black text-gray-800 mt-1">{{ total_finalizadas }}</h3>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 text-lg">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
         </div>
 
-        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-critico">
-            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Hallazgos Críticos</span>
-            <span class="text-3xl font-black text-red-600">{{ total_criticos }}</span>
+        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-amber-500 border-gray-200 flex items-center justify-between">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase text-gray-400 tracking-wider">En Proceso</p>
+                <h3 class="text-2xl font-black text-gray-800 mt-1">{{ total_pendientes }}</h3>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 text-lg">
+                <i class="fa-solid fa-clock"></i>
+            </div>
         </div>
 
-        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-amber-500">
-            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">En Proceso / Pendientes</span>
-            <span class="text-3xl font-black text-amber-600">{{ total_pendientes }}</span>
+        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-red-500 border-gray-200 flex items-center justify-between">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase text-gray-400 tracking-wider">Casos Críticos</p>
+                <h3 class="text-2xl font-black text-red-600 mt-1">{{ total_criticos }}</h3>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 text-lg">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-indigo-600 border-gray-200 flex items-center justify-between">
+            <div>
+                <p class="text-[10px] font-extrabold uppercase text-gray-400 tracking-wider">TAT Promedio</p>
+                <h3 class="text-2xl font-black text-indigo-700 mt-1">{{ tat_promedio_dias }} <span class="text-xs font-semibold text-gray-500">días</span></h3>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 text-lg">
+                <i class="fa-solid fa-stopwatch"></i>
+            </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-user-doctor text-clinica"></i> Biopsias por Patólogo Responsable
-            </h3>
-            <div class="relative h-64">
-                <canvas id="chartPatologos"></canvas>
-            </div>
-        </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-triangle-exclamation text-critico"></i> Proporción de Casos Críticos vs Normales
+        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-calendar-days text-clinica"></i> Ingreso Mensual de Biopsias
             </h3>
-            <div class="relative h-64 flex justify-center">
-                <canvas id="chartCriticos"></canvas>
-            </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 lg:col-span-2">
-            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-chart-area text-clinica"></i> Tendencia y Evolución Mensual de Biopsias
-            </h3>
-            <div class="relative h-72">
+            <div class="h-64 relative">
                 <canvas id="chartMeses"></canvas>
             </div>
         </div>
 
-        <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 lg:col-span-2">
-            <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-vial text-patologia"></i> Muestras Procesadas según Tipo de Examen
+        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-user-doctor text-clinica"></i> Carga de Trabajo por Patólogo
             </h3>
-            <div class="relative h-72">
+            <div class="h-64 relative">
+                <canvas id="chartPatologos"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-pie-chart text-clinica"></i> Porcentaje de Casos Críticos vs Normales
+            </h3>
+            <div class="h-64 relative">
+                <canvas id="chartCriticos"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-microscope text-clinica"></i> Muestras por Tipo de Examen
+            </h3>
+            <div class="h-64 relative">
                 <canvas id="chartTipos"></canvas>
             </div>
         </div>
 
     </div>
+
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // 1. Chart Patólogos
-        new Chart(document.getElementById('chartPatologos'), {
-            type: 'bar',
-            data: {
-                labels: {{ labels_patologos|safe }},
-                datasets: [{
-                    label: 'Biopsias Asignadas',
-                    data: {{ data_patologos|safe }},
-                    backgroundColor: '#064e3b',
-                    borderRadius: 6
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+        const colorVerde = '#047857';
+        const colorVerdeClaro = '#a7f3d0';
+        const colorRojo = '#ef4444';
+        const colorAzul = '#3b82f6';
 
-        // 2. Chart Críticos (Doughnut)
-        new Chart(document.getElementById('chartCriticos'), {
-            type: 'doughnut',
-            data: {
-                labels: ['Normales / De Rutina (%)', 'Críticos / Urgentes (%)'],
-                datasets: [{
-                    data: [{{ porcentaje_normales }}, {{ porcentaje_criticos }}],
-                    backgroundColor: ['#10b981', '#ef4444']
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-
-        // 3. Chart Meses (Línea Temporal)
+        // 1. Gráfico Mensual (Barras)
         new Chart(document.getElementById('chartMeses'), {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: {{ labels_meses|safe }},
                 datasets: [{
-                    label: 'Biopsias Ingresadas por Mes',
+                    label: 'Muestras Ingresadas',
                     data: {{ data_meses|safe }},
-                    borderColor: '#064e3b',
-                    backgroundColor: 'rgba(6, 78, 59, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 5,
-                    pointBackgroundColor: '#10b981'
+                    backgroundColor: '#047857',
+                    borderRadius: 6
                 }]
             },
-            options: { 
-                responsive: true, 
+            options: {
+                responsive: true,
                 maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { stepSize: 1 }
-                    }
-                }
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
             }
         });
 
-        // 4. Chart Tipos Examen
+        // 2. Gráfico por Patólogo (Rosquilla)
+        new Chart(document.getElementById('chartPatologos'), {
+            type: 'doughnut',
+            data: {
+                labels: {{ labels_patologos|safe }},
+                datasets: [{
+                    data: {{ data_patologos|safe }},
+                    backgroundColor: ['#047857', '#3b82f6', '#f59e0b', '#10b981', '#6366f1']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // 3. Gráfico Críticos (Torta)
+        new Chart(document.getElementById('chartCriticos'), {
+            type: 'pie',
+            data: {
+                labels: ['Casos Críticos', 'Casos Normales'],
+                datasets: [{
+                    data: [{{ porcentaje_criticos }}, {{ porcentaje_normales }}],
+                    backgroundColor: [colorRojo, colorVerdeClaro]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // 4. Gráfico por Tipo de Examen (Barras Horizontales)
         new Chart(document.getElementById('chartTipos'), {
             type: 'bar',
             data: {
                 labels: {{ labels_tipos|safe }},
                 datasets: [{
-                    label: 'Cantidad de Muestras',
+                    label: 'Total Exámenes',
                     data: {{ data_tipos|safe }},
-                    backgroundColor: '#10b981',
+                    backgroundColor: '#3b82f6',
                     borderRadius: 6
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
         });
     });
 </script>
