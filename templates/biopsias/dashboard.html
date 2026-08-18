@@ -1,106 +1,242 @@
 {% extends 'base.html' %}
 
-{% block title %}Panel de Laboratorio - Biogest{% endblock %}
+{% block title %}Dashboard Principal - Biogest{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="max-w-7xl mx-auto space-y-6 px-2 sm:px-4">
 
-    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-lg shadow-sm border border-gray-200 gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <i class="fa-solid fa-flask text-clinica"></i> Panel de Recepción y Proceso
-            </h1>
-            <p class="text-sm text-gray-500">Gestión de muestras ingresadas y trazabilidad activa.</p>
+    <div class="bg-gradient-to-r from-emerald-800 to-slate-900 p-5 sm:p-6 rounded-2xl shadow-xl border border-slate-700/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-white">
+        <div class="flex items-center gap-3">
+            <div class="bg-white/10 p-3 rounded-xl backdrop-blur-sm text-emerald-300">
+                <i class="fa-solid fa-house-medical text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl sm:text-2xl font-bold tracking-wide">Panel de Control General</h1>
+                <p class="text-emerald-100/80 text-xs sm:text-sm font-medium mt-0.5">Gestión centralizada de muestras y trazabilidad clínica</p>
+            </div>
         </div>
-        <a href="{% url 'registrar_biopsia' %}" class="bg-patologia hover:bg-emerald-600 text-white font-bold py-2.5 px-6 rounded-md transition shadow flex items-center gap-2">
-            <i class="fa-solid fa-plus"></i> Registrar Nueva Biopsia
+        <a href="{% url 'registrar_biopsia' %}" class="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-wider">
+            <i class="fa-solid fa-plus"></i> Ingresar Muestra
         </a>
     </div>
 
-    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-        <form method="GET" action="{% url 'dashboard' %}" class="flex w-full md:w-2/3 lg:w-1/2">
-            <input type="text" name="q" value="{{ query }}" placeholder="Buscar por RUT (12.345.678-9), Nombre o Correlativo..." 
-                   class="w-full px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-clinica text-sm">
-            <button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-r-md border border-gray-300 border-l-0 transition text-sm font-semibold">
-                <i class="fa-solid fa-magnifying-glass"></i> Buscar
-            </button>
-            {% if query %}
-                <a href="{% url 'dashboard' %}" class="ml-3 text-red-500 hover:text-red-700 font-bold py-2 flex items-center text-sm">
-                    <i class="fa-solid fa-xmark mr-1"></i> Limpiar
-                </a>
-            {% endif %}
-        </form>
-    </div>
+    <div id="contenedor-actualizable" class="space-y-6">
 
-    <div id="contenedor-actualizable">
-        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+        {% if examenes_criticos %}
+        <div class="bg-white rounded-2xl shadow-lg border border-red-200 overflow-hidden relative">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-500 via-rose-500 to-red-600"></div>
+            
+            <div class="p-4 sm:p-5 border-b border-red-100 bg-red-50/40 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center text-red-600 font-bold">
+                        <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm sm:text-base font-black text-red-800 tracking-wide uppercase">Casos Críticos / Urgencias</h2>
+                        <p class="text-[11px] text-red-600/80 font-medium">Muestras con hallazgos de alta prioridad clínica</p>
+                    </div>
+                </div>
+                <span class="text-[10px] font-extrabold bg-red-100 text-red-700 px-3 py-1 rounded-full border border-red-200 uppercase tracking-wider">
+                    Atención Prioritaria
+                </span>
+            </div>
+
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead class="bg-clinica text-white text-xs uppercase tracking-wider">
-                        <tr>
-                            <th class="py-3.5 px-4">Correlativo</th>
-                            <th class="py-3.5 px-4">Paciente</th>
-                            <th class="py-3.5 px-4">RUT</th>
-                            <th class="py-3.5 px-4">Tipo de Examen</th>
-                            <th class="py-3.5 px-4">Estado</th>
-                            <th class="py-3.5 px-4 text-center">Patólogo</th>
-                            <th class="py-3.5 px-4 text-center">Acciones</th>
+                <table class="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                        <tr class="bg-red-50/20 text-[10px] font-black text-slate-500 uppercase tracking-wider border-b border-red-100">
+                            <th class="p-3.5 sm:p-4">Correlativo</th>
+                            <th class="p-3.5 sm:p-4">Paciente</th>
+                            <th class="p-3.5 sm:p-4">Examen</th>
+                            <th class="p-3.5 sm:p-4">Estado</th>
+                            <th class="p-3.5 sm:p-4 text-center">Acción</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        {% for muestra in muestras %}
-                        <tr class="hover:bg-emerald-50 transition">
-                            <td class="py-3 px-4 font-bold text-gray-800">{{ muestra.numero_correlativo }}</td>
-                            <td class="py-3 px-4 font-medium">{{ muestra.paciente.nombre_completo }}</td>
-                            <td class="py-3 px-4 text-gray-600">{{ muestra.paciente.rut }}</td>
-                            <td class="py-3 px-4 text-gray-600">{{ muestra.tipo_examen.nombre }}</td>
-                            <td class="py-3 px-4">
-                                {% if muestra.resultado_critico %}
-                                    <span class="bg-red-100 text-red-800 border-red-200 text-[10px] uppercase font-bold px-2 py-0.5 rounded border"><i class="fa-solid fa-triangle-exclamation"></i> Crítico</span>
+                    <tbody class="divide-y divide-red-100/60 text-xs sm:text-sm">
+                        {% for muestra in examenes_criticos %}
+                        <tr class="hover:bg-red-50/60 transition-colors">
+                            <td class="p-3.5 sm:p-4 font-black text-slate-900 font-mono">{{ muestra.numero_correlativo }}</td>
+                            <td class="p-3.5 sm:p-4">
+                                <span class="font-bold text-slate-800 block">{{ muestra.paciente.nombre_completo }}</span>
+                                <span class="text-[11px] text-slate-500 font-semibold">{{ muestra.paciente.rut }}</span>
+                            </td>
+                            <td class="p-3.5 sm:p-4">
+                                <span class="font-semibold text-slate-700 block">{{ muestra.tipo_examen.nombre }}</span>
+                                <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                                    <i class="fa-regular fa-calendar text-red-400"></i> {{ muestra.fecha_recepcion|date:"d M Y" }}
+                                </span>
+                            </td>
+                            <td class="p-3.5 sm:p-4">
+                                {% if muestra.estado == 'Ingresada' %}
+                                    <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-slate-300"><i class="fa-solid fa-inbox"></i> Ingresada</span>
+                                {% elif muestra.estado == 'En Evaluación' %}
+                                    <span class="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200"><i class="fa-solid fa-microscope"></i> En Evaluación</span>
                                 {% else %}
-                                    <span class="{% if muestra.estado == 'Finalizado' %}bg-emerald-100 text-emerald-800 border-emerald-200{% elif muestra.estado == 'Ingresada' %}bg-gray-100 text-gray-800 border-gray-200{% else %}bg-amber-100 text-amber-800 border-amber-200{% endif %} text-xs font-semibold px-2.5 py-0.5 rounded border">
-                                        {{ muestra.estado }}
-                                    </span>
+                                    <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-md border border-emerald-200"><i class="fa-solid fa-circle-check"></i> Finalizado</span>
                                 {% endif %}
                             </td>
-                            <td class="py-3 px-4 text-center">
-                                {% if muestra.patologo %}
-                                    <span class="text-xs font-bold text-clinica" title="{{ muestra.patologo.username }}">
-                                        <i class="fa-solid fa-user-doctor mr-1"></i> Dr(a). {{ muestra.patologo.get_full_name|default:muestra.patologo.username }}
-                                    </span>
-                                {% else %}
-                                    <span class="text-xs text-gray-400 italic">No asignado</span>
-                                {% endif %}
-                            </td>
-                            <td class="py-3 px-4 text-center">
-                                <div class="flex justify-center items-center gap-1.5">
-                                    <button id="btn-chat-{{ muestra.id }}" onclick="abrirModalChat('{{ muestra.id }}')" title="Chat Interno"
-                                            class="px-2.5 py-1.5 rounded text-xs font-bold transition {% if muestra.alerta_chat_laboratorio %}bg-red-500 text-white animate-pulse shadow-md{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200{% endif %}">
-                                        <i class="fa-regular fa-comments text-sm"></i>
-                                    </button>
-                                    
-                                    <button data-url="{% url 'etiqueta_frasco' muestra.id %}" onclick="window.open(this.dataset.url, 'EtiquetaQR', 'width=480,height=420')" 
-                                            class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1.5 rounded text-xs font-bold transition shadow-sm" title="Imprimir Etiqueta de Frasco">
-                                        <i class="fa-solid fa-qrcode text-sm"></i>
-                                    </button>
-
-                                    <a href="{% url 'detalle_muestra' muestra.id %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1.5 rounded text-xs font-semibold border border-gray-200 transition" title="Ver Ficha">
-                                        <i class="fa-regular fa-eye"></i>
+                            <td class="p-3.5 sm:p-4 text-center">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <a href="{% url 'detalle_muestra' muestra.id %}" class="w-8 h-8 rounded-lg bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center" title="Ver Expediente">
+                                        <i class="fa-solid fa-eye text-xs"></i>
                                     </a>
-                                    
+                                    <button onclick="abrirModalChat('critico-{{ muestra.id }}', '{% url 'api_chat_examen' muestra.id %}')" class="w-8 h-8 rounded-lg bg-white border border-red-200 transition-all shadow-sm flex items-center justify-center {% if muestra.alerta_chat_laboratorio %}bg-red-500 text-white animate-pulse{% else %}text-red-600 hover:bg-red-600 hover:text-white{% endif %}" title="Chat Interno">
+                                        <i class="fa-solid fa-comments text-xs"></i>
+                                    </button>
+                                    <a href="{% url 'etiqueta_qr' muestra.id %}" target="_blank" class="w-8 h-8 rounded-lg bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center" title="Imprimir QR">
+                                        <i class="fa-solid fa-qrcode text-xs"></i>
+                                    </a>
                                     {% if muestra.estado == 'Finalizado' %}
-                                    <a href="{% url 'generar_pdf' muestra.id %}" target="_blank" class="bg-gray-800 hover:bg-black text-white px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-sm" title="Descargar PDF Oficial">
-                                        <i class="fa-solid fa-file-pdf"></i>
+                                    <a href="{% url 'generar_pdf' muestra.id %}" target="_blank" class="w-8 h-8 rounded-lg bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center" title="Descargar PDF">
+                                        <i class="fa-solid fa-file-pdf text-xs"></i>
                                     </a>
                                     {% endif %}
                                 </div>
                             </td>
                         </tr>
+
+                        <div id="chat-modal-critico-{{ muestra.id }}" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+                            <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full flex flex-col max-h-[80vh] border border-slate-200 overflow-hidden">
+                                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-comments text-emerald-600"></i> Chat: {{ muestra.numero_correlativo }}</h3>
+                                    <div class="flex gap-2 items-center">
+                                        {% if muestra.alerta_chat_laboratorio %}
+                                        <form method="POST" action="{% url 'dashboard' %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="marcar_leido">
+                                            <input type="hidden" name="examen_id" value="{{ muestra.id }}">
+                                            <button type="submit" class="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-2.5 py-1.5 rounded-lg font-bold transition-colors">Marcar Leído</button>
+                                        </form>
+                                        {% endif %}
+                                        <button onclick="cerrarModalChat('critico-{{ muestra.id }}')" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-200 hover:bg-red-100 text-slate-600 hover:text-red-600 transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+                                    </div>
+                                </div>
+                                <div id="chat-box-critico-{{ muestra.id }}" class="p-4 overflow-y-auto flex-1 space-y-3 bg-white"></div>
+                                {% if muestra.estado != 'Finalizado' %}
+                                <div class="p-4 border-t border-slate-100 bg-slate-50">
+                                    <form onsubmit="enviarMensaje(event, 'critico-{{ muestra.id }}')" class="flex gap-2">
+                                        {% csrf_token %}
+                                        <input type="text" id="input-msg-critico-{{ muestra.id }}" required placeholder="Escribir al patólogo..." class="w-full text-sm px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+                                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold w-12 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-paper-plane"></i></button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/70 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-sm sm:text-base font-black text-slate-800 tracking-wide flex items-center gap-2 uppercase">
+                        <i class="fa-solid fa-list-check text-emerald-700"></i> Historial General de Muestras
+                    </h2>
+                    <p class="text-[11px] text-slate-500 font-medium mt-0.5">Agrupado por estado: Ingresadas &rarr; En Evaluación &rarr; Finalizadas</p>
+                </div>
+
+                <form method="GET" action="{% url 'dashboard' %}" class="w-full md:w-80 relative">
+                    <input type="text" name="q" value="{{ query }}" placeholder="Buscar por RUT, Correlativo..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-emerald-600 shadow-sm transition-all">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    {% if query %}
+                        <a href="{% url 'dashboard' %}" class="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold">&times;</a>
+                    {% endif %}
+                </form>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[650px]">
+                    <thead>
+                        <tr class="bg-slate-100/60 text-[10px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                            <th class="p-3.5 sm:p-4">Correlativo</th>
+                            <th class="p-3.5 sm:p-4">Paciente</th>
+                            <th class="p-3.5 sm:p-4">Detalle Biopsia</th>
+                            <th class="p-3.5 sm:p-4">Estado Actual</th>
+                            <th class="p-3.5 sm:p-4 text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-xs sm:text-sm">
+                        {% for muestra in page_obj %}
+                        <tr class="hover:bg-slate-50/80 transition-colors">
+                            <td class="p-3.5 sm:p-4 font-black text-slate-800 font-mono">{{ muestra.numero_correlativo }}</td>
+                            <td class="p-3.5 sm:p-4">
+                                <span class="font-bold text-slate-900 block">{{ muestra.paciente.nombre_completo }}</span>
+                                <span class="text-[11px] text-slate-500 font-medium">{{ muestra.paciente.rut }}</span>
+                            </td>
+                            <td class="p-3.5 sm:p-4">
+                                <span class="font-semibold text-slate-700 block">{{ muestra.tipo_examen.nombre }}</span>
+                                <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                                    <i class="fa-regular fa-calendar"></i> Rec: {{ muestra.fecha_recepcion|date:"d/m/Y" }}
+                                </span>
+                            </td>
+                            <td class="p-3.5 sm:p-4">
+                                {% if muestra.estado == 'Ingresada' %}
+                                    <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-[10px] font-bold px-2.5 py-1 rounded-md border border-slate-300"><i class="fa-solid fa-inbox"></i> Ingresada</span>
+                                {% elif muestra.estado == 'En Evaluación' %}
+                                    <span class="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-md border border-amber-200"><i class="fa-solid fa-microscope"></i> En Evaluación</span>
+                                {% else %}
+                                    <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-md border border-emerald-200"><i class="fa-solid fa-circle-check"></i> Finalizado</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3.5 sm:p-4 text-center">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <a href="{% url 'detalle_muestra' muestra.id %}" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-emerald-700 text-slate-600 hover:text-white transition-all shadow-sm flex items-center justify-center" title="Ver Expediente">
+                                        <i class="fa-solid fa-eye text-xs"></i>
+                                    </a>
+                                    <button onclick="abrirModalChat('gen-{{ muestra.id }}', '{% url 'api_chat_examen' muestra.id %}')" class="w-8 h-8 rounded-lg transition-all shadow-sm flex items-center justify-center {% if muestra.alerta_chat_laboratorio %}bg-red-500 text-white animate-pulse{% else %}bg-slate-100 hover:bg-blue-600 text-slate-600 hover:text-white{% endif %}" title="Chat Interno">
+                                        <i class="fa-solid fa-comments text-xs"></i>
+                                    </button>
+                                    <a href="{% url 'etiqueta_qr' muestra.id %}" target="_blank" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-amber-500 text-slate-600 hover:text-white transition-all shadow-sm flex items-center justify-center" title="Imprimir QR">
+                                        <i class="fa-solid fa-qrcode text-xs"></i>
+                                    </a>
+                                    {% if muestra.estado == 'Finalizado' %}
+                                    <a href="{% url 'generar_pdf' muestra.id %}" target="_blank" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-600 text-slate-600 hover:text-white transition-all shadow-sm flex items-center justify-center" title="Descargar PDF">
+                                        <i class="fa-solid fa-file-pdf text-xs"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+
+                        <div id="chat-modal-gen-{{ muestra.id }}" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+                            <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full flex flex-col max-h-[80vh] border border-slate-200 overflow-hidden">
+                                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-comments text-emerald-600"></i> Chat: {{ muestra.numero_correlativo }}</h3>
+                                    <div class="flex gap-2 items-center">
+                                        {% if muestra.alerta_chat_laboratorio %}
+                                        <form method="POST" action="{% url 'dashboard' %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="marcar_leido">
+                                            <input type="hidden" name="examen_id" value="{{ muestra.id }}">
+                                            <button type="submit" class="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-2.5 py-1.5 rounded-lg font-bold transition-colors">Marcar Leído</button>
+                                        </form>
+                                        {% endif %}
+                                        <button onclick="cerrarModalChat('gen-{{ muestra.id }}')" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-200 hover:bg-red-100 text-slate-600 hover:text-red-600 transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+                                    </div>
+                                </div>
+                                <div id="chat-box-gen-{{ muestra.id }}" class="p-4 overflow-y-auto flex-1 space-y-3 bg-white"></div>
+                                {% if muestra.estado != 'Finalizado' %}
+                                <div class="p-4 border-t border-slate-100 bg-slate-50">
+                                    <form onsubmit="enviarMensaje(event, 'gen-{{ muestra.id }}')" class="flex gap-2">
+                                        {% csrf_token %}
+                                        <input type="text" id="input-msg-gen-{{ muestra.id }}" required placeholder="Escribir al patólogo..." class="w-full text-sm px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:outline-none">
+                                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold w-12 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-paper-plane"></i></button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-8 text-gray-500">
-                                <i class="fa-solid fa-inbox text-3xl mb-2 text-gray-300 block"></i>
-                                No se encontraron muestras registradas.
+                            <td colspan="5" class="p-10 text-center text-slate-400">
+                                <div class="flex flex-col items-center gap-2">
+                                    <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-xl mb-1"><i class="fa-regular fa-folder-open"></i></div>
+                                    <span class="font-bold text-sm text-slate-600">No se encontraron muestras registradas.</span>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -109,171 +245,101 @@
             </div>
 
             {% if page_obj.has_other_pages %}
-            <div class="px-4 py-3 bg-white border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div class="text-xs text-gray-500">
-                    Mostrando <strong>{{ page_obj.start_index }}</strong> a <strong>{{ page_obj.end_index }}</strong> de <strong>{{ page_obj.paginator.count }}</strong> muestras
-                </div>
-                <div class="flex items-center gap-1 text-xs">
+            <div class="p-4 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <p class="text-xs text-slate-500 font-medium">Mostrando página <span class="font-bold text-slate-700">{{ page_obj.number }}</span> de {{ page_obj.paginator.num_pages }}</p>
+                <nav class="flex items-center gap-1.5">
                     {% if page_obj.has_previous %}
-                        <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-semibold transition border border-gray-200">
-                            <i class="fa-solid fa-chevron-left"></i> Anterior
-                        </a>
-                    {% else %}
-                        <span class="px-2.5 py-1 bg-gray-50 text-gray-400 rounded font-semibold border border-gray-100 cursor-not-allowed">
-                            <i class="fa-solid fa-chevron-left"></i> Anterior
-                        </span>
+                        <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" class="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 shadow-sm">&laquo; Anterior</a>
                     {% endif %}
-
-                    {% for num in page_obj.paginator.page_range %}
-                        {% if page_obj.number == num %}
-                            <span class="px-2.5 py-1 bg-clinica text-white rounded font-bold">{{ num }}</span>
-                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                            <a href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-semibold transition border border-gray-200">{{ num }}</a>
-                        {% endif %}
-                    {% endfor %}
-
                     {% if page_obj.has_next %}
-                        <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-semibold transition border border-gray-200">
-                            Siguiente <i class="fa-solid fa-chevron-right"></i>
-                        </a>
-                    {% else %}
-                        <span class="px-2.5 py-1 bg-gray-50 text-gray-400 rounded font-semibold border border-gray-100 cursor-not-allowed">
-                            Siguiente <i class="fa-solid fa-chevron-right"></i>
-                        </span>
+                        <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 shadow-sm">Siguiente &raquo;</a>
                     {% endif %}
-                </div>
+                </nav>
             </div>
             {% endif %}
+
         </div>
 
-        {% for muestra in muestras %}
-        <div id="chat-modal-{{ muestra.id }}" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full flex flex-col max-h-[80vh]">
-                <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
-                    <h3 class="font-bold text-gray-800"><i class="fa-solid fa-comments text-clinica"></i> Chat: {{ muestra.numero_correlativo }}</h3>
-                    <div class="flex items-center gap-2">
-                        <button onclick="marcarLeido('{{ muestra.id }}')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-2.5 py-1 rounded transition">
-                            <i class="fa-solid fa-check text-emerald-600 mr-1"></i> Marcar Leído
-                        </button>
-                        <button onclick="cerrarModalChat('{{ muestra.id }}')" class="text-gray-500 hover:text-red-500 font-bold ml-2"><i class="fa-solid fa-xmark text-lg"></i></button>
-                    </div>
-                </div>
-                <div id="chat-box-{{ muestra.id }}" class="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50"></div>
-                {% if muestra.estado != 'Finalizado' %}
-                <div class="p-4 border-t bg-white rounded-b-lg">
-                    <form onsubmit="enviarMensaje(event, '{{ muestra.id }}')" class="flex gap-2">
-                        {% csrf_token %}
-                        <input type="text" id="input-msg-{{ muestra.id }}" required placeholder="Escribir mensaje al patólogo..." class="w-full text-sm px-3 py-2 border border-gray-300 rounded focus:ring-clinica focus:outline-none">
-                        <button type="submit" class="bg-clinica hover:bg-gray-900 text-white font-bold px-4 py-2 rounded text-sm"><i class="fa-solid fa-paper-plane"></i></button>
-                    </form>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
     </div>
 </div>
 
 <script>
+    let chatAbierto = false;
     let chatIntervals = {};
+    let urlsChats = {}; // Para guardar la URL de la API de cada modal
 
+    // 1. AUTO-ACTUALIZAR TABLA (AJAX Polling seguro sin recargar la página entera)
     setInterval(() => {
-        fetch("{% url 'api_check_pendientes' %}")
-        .then(res => res.json())
-        .then(data => {
-            if(data.muestras) {
-                data.muestras.forEach(m => {
-                    const btn = document.getElementById('btn-chat-' + m.id);
-                    if(btn) {
-                        if(m.alerta_chat) {
-                            btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-red-500 text-white animate-pulse shadow-md";
-                        } else {
-                            btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200";
-                        }
-                    }
-                });
-            }
-        })
-        .catch(err => console.error("Error en alertas:", err));
-    }, 3000);
-
-    document.addEventListener("DOMContentLoaded", function() {
-        setInterval(function() {
-            const chatAbierto = document.querySelector('[id^="chat-modal-"]:not(.hidden)');
-            if (chatAbierto) return;
-
+        // Solo actualiza si no hay ningún modal de chat abierto
+        if (!chatAbierto) {
             fetch(window.location.href)
-            .then(response => response.text())
+            .then(res => res.text())
             .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const nuevoContenido = doc.getElementById('contenedor-actualizable');
-                const contenidoActual = document.getElementById('contenedor-actualizable');
-                
-                if (nuevoContenido && contenidoActual) {
-                    contenidoActual.innerHTML = nuevoContenido.innerHTML;
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const nuevo = doc.getElementById('contenedor-actualizable');
+                const actual = document.getElementById('contenedor-actualizable');
+                if(nuevo && actual) {
+                    actual.innerHTML = nuevo.innerHTML;
                 }
-            })
-            .catch(error => console.error("Error actualizando estados:", error));
-        }, 5000);
-    });
+            }).catch(err => console.log('Silencio: Error de actualización de panel'));
+        }
+    }, 5000);
 
-    function abrirModalChat(id) { 
-        document.getElementById('chat-modal-' + id).classList.replace('hidden', 'flex'); 
-        cargarMensajes(id);
-        marcarLeido(id); 
-        chatIntervals[id] = setInterval(() => cargarMensajes(id), 2000); 
+    // 2. LÓGICA DEL CHAT EN VIVO
+    function abrirModalChat(modalId, apiUrl) { 
+        chatAbierto = true;
+        urlsChats[modalId] = apiUrl; 
+        const modal = document.getElementById('chat-modal-' + modalId);
+        if(modal) {
+            modal.classList.replace('hidden', 'flex'); 
+            cargarMensajes(modalId);
+            chatIntervals[modalId] = setInterval(() => cargarMensajes(modalId), 2000);
+        }
     }
 
-    function cerrarModalChat(id) { 
-        document.getElementById('chat-modal-' + id).classList.replace('flex', 'hidden'); 
-        if(chatIntervals[id]) clearInterval(chatIntervals[id]);
+    function cerrarModalChat(modalId) { 
+        chatAbierto = false;
+        const modal = document.getElementById('chat-modal-' + modalId);
+        if(modal) {
+            modal.classList.replace('flex', 'hidden');
+        }
+        if(chatIntervals[modalId]) clearInterval(chatIntervals[modalId]);
     }
 
-    function marcarLeido(id) {
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-        const formData = new FormData();
-        formData.append('action', 'marcar_leido');
-        if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
-
-        const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
-        fetch(url, { method: 'POST', body: formData })
-        .then(() => {
-            const btn = document.getElementById('btn-chat-' + id);
-            if(btn) btn.className = "px-2.5 py-1.5 rounded text-xs font-bold transition bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200";
-        });
-    }
-
-    function cargarMensajes(id) {
-        const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
-        fetch(url)
+    function cargarMensajes(modalId) {
+        fetch(urlsChats[modalId])
         .then(res => res.json())
         .then(data => {
-            const container = document.getElementById('chat-box-' + id);
+            const container = document.getElementById('chat-box-' + modalId);
+            if(!container) return;
+            
             container.innerHTML = ''; 
             
-            if(!data.mensajes || data.mensajes.length === 0) {
-                container.innerHTML = '<p class="text-center text-xs text-gray-400 italic">No hay mensajes.</p>';
+            if(data.mensajes.length === 0) {
+                container.innerHTML = '<p class="text-center text-xs text-slate-400 italic mt-4">No hay mensajes en el historial.</p>';
                 return;
             }
             
             data.mensajes.forEach(msg => {
-                const alignClass = msg.es_mio ? 'border-clinica ml-8' : 'border-gray-200 mr-8';
+                const esMio = msg.es_mio;
+                const alignClass = esMio ? 'border-emerald-200 ml-8 bg-emerald-50/50' : 'border-slate-200 mr-8 bg-white';
+                const userIcon = esMio ? '<i class="fa-solid fa-user-tie"></i>' : '<i class="fa-solid fa-user-doctor"></i>';
+                
                 container.innerHTML += `
-                    <div class="bg-white p-3 rounded shadow-sm border text-sm ${alignClass}">
-                        <span class="font-bold text-xs text-gray-500 block mb-1">
-                            <i class="fa-solid fa-user-circle"></i> ${msg.usuario} - ${msg.fecha}
+                    <div class="p-3 rounded-xl shadow-sm border text-sm ${alignClass}">
+                        <span class="font-bold text-[10px] uppercase tracking-wider text-slate-500 block mb-1.5 flex items-center gap-1.5">
+                            ${userIcon} ${msg.usuario} <span class="font-medium lowercase text-slate-400 ml-auto">${msg.fecha}</span>
                         </span>
-                        <p class="text-gray-800">${msg.texto}</p>
+                        <p class="text-slate-700 leading-relaxed">${msg.texto}</p>
                     </div>`;
             });
-            container.scrollTop = container.scrollHeight; 
-        });
+            container.scrollTop = container.scrollHeight;
+        }).catch(err => console.log(err));
     }
 
-    function enviarMensaje(event, id) {
+    function enviarMensaje(event, modalId) {
         event.preventDefault();
-        const input = document.getElementById('input-msg-' + id);
+        const input = document.getElementById('input-msg-' + modalId);
         const mensaje = input.value;
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
@@ -281,12 +347,13 @@
         formData.append('mensaje', mensaje);
         formData.append('csrfmiddlewaretoken', csrfToken);
 
-        const url = "{% url 'api_chat_examen' 0 %}".replace('0', id);
-        fetch(url, { method: 'POST', body: formData })
-        .then(() => {
+        fetch(urlsChats[modalId], {
+            method: 'POST',
+            body: formData
+        }).then(() => {
             input.value = '';
-            cargarMensajes(id);
-        });
+            cargarMensajes(modalId); // Recarga al instante tras enviar
+        }).catch(err => console.log(err));
     }
 </script>
 {% endblock %}

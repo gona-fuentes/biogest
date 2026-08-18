@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Q, Count
+from django.db.models import Case, When, Value, IntegerField, Q, Count
 from django.db.models.functions import TruncMonth
 from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
@@ -19,6 +19,12 @@ from .forms import ExamenForm, PlantillaPatologoForm
 from .utils import enviar_informe_por_correo
 import uuid
 from django.contrib import messages
+
+
+
+
+
+
 User = get_user_model()
 
 
@@ -40,30 +46,47 @@ def limpiar_rut(rut):
 
 
 @login_required
-@user_passes_test(es_laboratorio, login_url='/usuarios/login/')
+@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def dashboard(request):
     query = request.GET.get('q', '').strip()
-    muestras = Examen.objects.all().order_by('-fecha_recepcion')
     
+    # Base de todos los exámenes
+    queryset = Examen.objects.all()
+    
+    # Filtro de búsqueda
     if query:
-        query_limpio = limpiar_rut(query)
-        muestras = muestras.filter(
+        # Nota: Ajusta 'limpiar_rut' si usas esa función aquí
+        queryset = queryset.filter(
             Q(paciente__rut__icontains=query) |
-            Q(paciente__rut__icontains=query_limpio) |
             Q(paciente__nombre_completo__icontains=query) |
             Q(numero_correlativo__icontains=query)
         )
 
-    # Paginación a máximo 5 muestras por página
-    paginator = Paginator(muestras, 5)
+    # 1. TABLA DE CRÍTICOS (Limitado a los 2 más recientes)
+    examenes_criticos = queryset.filter(resultado_critico=True).order_by('-fecha_recepcion')[:2]
+
+    # 2. TABLA PRINCIPAL ORDENADA POR ESTADO
+    examenes_principales = queryset.annotate(
+        orden_estado=Case(
+            When(estado='Ingresada', then=Value(1)),
+            When(estado='En Evaluación', then=Value(2)),
+            When(estado='Finalizado', then=Value(3)),
+            default=Value(4),
+            output_field=IntegerField(),
+        )
+    ).order_by('orden_estado', '-fecha_recepcion')
+
+    # Paginación para la tabla principal (Limitado a 3 por página)
+    paginator = Paginator(examenes_principales, 3) 
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    return render(request, 'biopsias/dashboard.html', {
-        'muestras': page_obj,
+    context = {
         'page_obj': page_obj,
-        'query': query
-    })
+        'query': query,
+        'examenes_criticos': examenes_criticos,
+    }
+    return render(request, 'biopsias/dashboard.html', context)
 
 
 

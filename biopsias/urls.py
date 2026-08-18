@@ -15,7 +15,7 @@ urlpatterns = [
     path('nueva-biopsia/', views.registrar_biopsia, name='registrar_biopsia'),
     path('muestra/<int:examen_id>/', views.detalle_muestra, name='detalle_muestra'),
     path('muestra/<int:examen_id>/pdf/', views.generar_informe_pdf, name='generar_pdf'),
-    path('muestra/<int:examen_id>/etiqueta/', views.etiqueta_frasco, name='etiqueta_frasco'),
+    path('muestra/<int:examen_id>/etiqueta/', views.etiqueta_frasco, name='etiqueta_qr'),
     path('asignar/<int:examen_id>/', views.asignar_patologo, name='asignar_patologo'),
 
     # ==========================================
