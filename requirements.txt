@@ -9,7 +9,11 @@ colorama==0.4.6
 cryptography==50.0.0
 cssselect2==0.9.0
 Django==6.0
+django-formtools==2.7
+django-otp==1.7.0
+django-phonenumber-field==8.5.0
 django-simple-history==3.13.0
+django-two-factor-auth==1.18.1
 fonttools==4.63.0
 html5lib==1.1
 idna==3.18

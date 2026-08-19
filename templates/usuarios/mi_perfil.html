@@ -99,4 +99,26 @@
         </form>
     </div>
 </div>
+
+<div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mt-6">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center text-xl shrink-0">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-extrabold text-slate-800">Autenticación de Doble Factor (2FA)</h3>
+                <p class="text-xs text-slate-500 mt-0.5">
+                    Vincula tu celular con Google Authenticator o Authy para blindar tu cuenta médica.
+                </p>
+            </div>
+        </div>
+
+        <a href="{% url 'two_factor:profile' %}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shrink-0">
+            <i class="fa-solid fa-key"></i> Configurar / Activar 2FA
+        </a>
+
+    </div>
+</div>
 {% endblock %}

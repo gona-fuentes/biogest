@@ -177,5 +177,43 @@
 
         document.addEventListener('DOMContentLoaded', aplicarPrivacidad);
     </script>
+
+        {% if user.is_authenticated %}
+    <script>
+        let tiempoInactividad;
+        
+        function resetearTiempo() {
+            clearTimeout(tiempoInactividad);
+            // 600,000 milisegundos = 10 minutos
+            tiempoInactividad = setTimeout(cerrarSesion, 600000); 
+        }
+
+        function cerrarSesion() {
+            // En Django 5.0+ el logout exige un POST por seguridad.
+            // Creamos un formulario invisible dinámicamente y lo enviamos.
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{% url 'logout' %}?inactividad=true";
+            
+            // Agregamos el token de seguridad obligatorio
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = 'csrfmiddlewaretoken';
+            csrfToken.value = '{{ csrf_token }}';
+            
+            form.appendChild(csrfToken);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        // Escuchar cualquier movimiento o tecleo del usuario
+        window.onload = resetearTiempo;
+        document.onmousemove = resetearTiempo;
+        document.onkeypress = resetearTiempo;
+        document.ontouchstart = resetearTiempo; // Para tablets/móviles
+    </script>
+    {% endif %}
+
+
 </body>
 </html>

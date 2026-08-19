@@ -29,6 +29,12 @@ INSTALLED_APPS = [
     'simple_history',
     'biopsias',
     'usuarios',
+
+    # LIBRERÍAS DE SEGURIDAD 2FA
+    'django_otp',
+    'django_otp.plugins.otp_static',
+    'django_otp.plugins.otp_totp',
+    'two_factor',
 ]
 
 MIDDLEWARE = [
@@ -37,6 +43,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_otp.middleware.OTPMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -108,13 +115,22 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 AUTH_USER_MODEL = 'usuarios.User'
-LOGIN_URL = 'login'       
-LOGIN_REDIRECT_URL = 'inicio'  
-LOGOUT_REDIRECT_URL = 'login'
+LOGIN_URL = 'two_factor:login'
+LOGIN_REDIRECT_URL = 'inicio'  # O 'dashboard' (la ruta a donde entran al loguearse)
+LOGOUT_REDIRECT_URL = 'two_factor:login' # <--- ESTA ES LA QUE CAUSABA EL ERRO
+
+
+#Expiración de sesión por inactividad (10 minutos)
+SESSION_COOKIE_AGE = 600 
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+
+
+
+
 
 
 # CORREO
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'mail.gona.cl'
 EMAIL_PORT = 465

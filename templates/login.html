@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Iniciar Sesión - Biogest{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md border-t-4 border-clinica mt-10">
+    <div class="text-center mb-6">
+        <span class="text-4xl">🔬</span>
+        <h2 class="text-2xl font-bold text-gray-800 mt-2">Acceso a Biogest</h2>
+        <p class="text-gray-500 text-sm">Ingrese sus credenciales para continuar</p>
+    </div>
+    
+    <form method="post" class="space-y-5">
+        {% csrf_token %}
+        
+        {% if form.errors %}
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded text-sm" role="alert">
+                <p>Usuario o contraseña incorrectos. Inténtelo de nuevo.</p>
+            </div>
+        {% endif %}
+
+        <div>
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
+                Nombre de Usuario
+            </label>
+            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-clinica focus:border-transparent" 
+                   id="username" type="text" name="username" required placeholder="Ej: j.perez">
+        </div>
+        
+        <div>
+            <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
+                Contraseña
+            </label>
+            <input class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-clinica focus:border-transparent" 
+                   id="password" type="password" name="password" required placeholder="********">
+        </div>
+        
+        <div class="mt-6">
+            <button class="w-full bg-clinica hover:bg-gray-900 text-white font-bold py-2 px-4 rounded-md transition duration-200" type="submit">
+                Iniciar Sesión
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

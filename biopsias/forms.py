@@ -1,6 +1,7 @@
 from django import forms
 from .models import Examen, Laboratorio, Medico, PlantillaPatologo
 from django.core.exceptions import ValidationError
+from itertools import cycle
 
 class ExamenForm(forms.ModelForm):
     # --- Campos para la Ficha Clínica del Paciente (Todos Obligatorios) ---

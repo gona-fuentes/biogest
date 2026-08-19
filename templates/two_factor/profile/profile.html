@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Seguridad 2FA{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-10 bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
+    <h2 class="text-2xl font-black text-slate-800 mb-2"><i class="fa-solid fa-shield-halved text-emerald-600"></i> Centro de Seguridad (2FA)</h2>
+    <p class="text-sm text-slate-500 mb-8">Protege el acceso a los datos médicos con el Doble Factor de Autenticación.</p>
+
+    {% if default_device %}
+        <div class="bg-emerald-50 border border-emerald-200 p-5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <h3 class="font-bold text-emerald-800 text-lg"><i class="fa-solid fa-circle-check"></i> 2FA Activado</h3>
+                <p class="text-xs text-emerald-600 font-medium">Tu cuenta está blindada con Google Authenticator.</p>
+            </div>
+            <a href="{% url 'two_factor:disable' %}" class="bg-white border border-red-200 hover:bg-red-50 text-red-600 text-xs font-bold px-4 py-2.5 rounded-lg transition-all shadow-sm">Desactivar Seguridad</a>
+        </div>
+    {% else %}
+        <div class="bg-amber-50 border border-amber-200 p-5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <h3 class="font-bold text-amber-800 text-lg"><i class="fa-solid fa-triangle-exclamation"></i> 2FA Desactivado</h3>
+                <p class="text-xs text-amber-600 font-medium">Tu cuenta es vulnerable. Vincula tu celular ahora.</p>
+            </div>
+            <a href="{% url 'two_factor:setup' %}" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-md transition-all">Configurar 2FA</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
