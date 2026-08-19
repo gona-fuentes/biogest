@@ -21,6 +21,28 @@
     </div>
 
     <div id="contenedor-actualizable" class="space-y-6">
+        <div id="contenedor-actualizable" class="space-y-6"></div>
+        {% if cantidad_atrasadas > 0 %}
+        <div class="bg-gradient-to-r from-amber-100 to-amber-50 border-l-4 border-amber-500 p-4 sm:p-5 rounded-xl shadow-sm flex items-start sm:items-center justify-between gap-4 animate-fade-in-down">
+            <div class="flex items-start sm:items-center gap-4">
+                <div class="bg-amber-200/50 p-2.5 rounded-lg text-amber-600 hidden sm:flex">
+                    <i class="fa-solid fa-stopwatch text-xl animate-pulse"></i>
+                </div>
+                <div>
+                    <h3 class="font-black text-amber-800 text-sm sm:text-base uppercase tracking-wide flex items-center gap-2">
+                        <i class="fa-solid fa-stopwatch sm:hidden animate-pulse"></i> Alerta de Tiempos (TAT)
+                    </h3>
+                    <p class="text-[11px] sm:text-xs text-amber-700 mt-1 font-medium">
+                        El sistema detecta <strong class="text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded">{{ cantidad_atrasadas }} muestra(s)</strong> que llevan más de 15 días en proceso sin ser finalizadas. 
+                        Se sugiere revisión prioritaria para cumplir con los estándares del laboratorio.
+                    </p>
+                </div>
+            </div>
+            <a href="?q=" class="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shadow-sm">
+                Revisar Pendientes
+            </a>
+        </div>
+        {% endif %}
 
         {% if examenes_criticos %}
         <div class="bg-white rounded-2xl shadow-lg border border-red-200 overflow-hidden relative">

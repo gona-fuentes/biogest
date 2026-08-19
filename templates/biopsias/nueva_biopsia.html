@@ -243,39 +243,71 @@
         }
     }
 
-   // 3. AUTOCOMPLETADO DE PACIENTES Y FORMATEO DE RUT EN TIEMPO REAL
+   // 3. AUTOCOMPLETADO, FORMATEO Y VALIDACIÓN MATEMÁTICA DEL RUT
     document.addEventListener("DOMContentLoaded", function() {
         const rutInput = document.getElementById('id_rut');
         const statusDiv = document.getElementById('rut-status');
+        const btnSubmit = document.querySelector('button[type="submit"]'); // Capturamos el botón de guardar
         
-        // Función para formatear el RUT con puntos y guion automáticamente
         function formatearRUT(valor) {
-            // Deja solo números y la letra K (mayúscula o minúscula)
             let rut = valor.replace(/[^0-9kK]/g, '').toUpperCase();
             if (rut.length <= 1) return rut;
-            
-            // Separa el cuerpo del dígito verificador
             let cuerpo = rut.slice(0, -1);
             let dv = rut.slice(-1);
-            
-            // Agrega los puntos cada 3 números al cuerpo
             cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-            
             return cuerpo + "-" + dv;
+        }
+
+        // ALGORITMO MÓDULO 11 EN JAVASCRIPT
+        function esRutValido(rutCompleto) {
+            let rutLimpio = rutCompleto.replace(/[^0-9kK]/g, '').toUpperCase();
+            if (rutLimpio.length < 7) return false;
+            
+            let cuerpo = rutLimpio.slice(0, -1);
+            let dvIngresado = rutLimpio.slice(-1);
+            
+            let suma = 0;
+            let multiplicador = 2;
+            for (let i = cuerpo.length - 1; i >= 0; i--) {
+                suma += parseInt(cuerpo.charAt(i)) * multiplicador;
+                multiplicador = multiplicador < 7 ? multiplicador + 1 : 2;
+            }
+            
+            let dvCalculado = 11 - (suma % 11);
+            if (dvCalculado === 11) dvCalculado = '0';
+            else if (dvCalculado === 10) dvCalculado = 'K';
+            else dvCalculado = dvCalculado.toString();
+            
+            return dvIngresado === dvCalculado;
         }
 
         if(rutInput && statusDiv) {
             rutInput.placeholder = "12.345.678-9";
 
-            // Evento 1: Mientras el usuario teclea, se formatea automáticamente
             rutInput.addEventListener('input', function(e) {
                 this.value = formatearRUT(this.value);
             });
 
-            // Evento 2: Cuando el usuario sale del campo (blur), busca al paciente
             rutInput.addEventListener('blur', function() {
                 let rut = this.value.trim();
+                
                 if(rut) {
+                    // Primero verificamos con matemáticas si el RUT existe en la vida real
+                    if (!esRutValido(rut)) {
+                        statusDiv.innerHTML = '<span class="bg-red-100 text-red-700 text-[10px] font-bold px-2.5 py-1 rounded-md"><i class="fa-solid fa-triangle-exclamation mr-1"></i>RUT Inválido</span>';
+                        rutInput.classList.replace('focus:ring-emerald-600', 'focus:ring-red-600');
+                        rutInput.classList.add('border-red-500', 'bg-red-50');
+                        btnSubmit.disabled = true; // Bloqueamos el botón de guardar
+                        btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+                        return; // Detenemos la ejecución aquí, no buscamos en la BD
+                    }
+
+                    // Si la matemática aprueba, liberamos el formulario y buscamos en la BD
+                    rutInput.classList.replace('focus:ring-red-600', 'focus:ring-emerald-600');
+                    rutInput.classList.remove('border-red-500', 'bg-red-50');
+                    btnSubmit.disabled = false;
+                    btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+
                     statusDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-emerald-600 text-sm"></i>';
                     
                     fetch(`/biopsias/api/paciente/${rut}/`)
@@ -290,14 +322,10 @@
                             
                             statusDiv.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500 text-lg" title="Paciente encontrado"></i>';
                         } else {
-                            statusDiv.innerHTML = '<span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-md"><i class="fa-solid fa-user-plus mr-1"></i>Nuevo</span>';
+                            statusDiv.innerHTML = '<span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-md"><i class="fa-solid fa-user-plus mr-1"></i>Nuevo Paciente</span>';
                         }
-                        
-                        setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
                     })
-                    .catch(() => {
-                        statusDiv.innerHTML = '';
-                    });
+                    .catch(() => { statusDiv.innerHTML = ''; });
                 }
             });
         }

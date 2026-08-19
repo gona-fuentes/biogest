@@ -13,6 +13,9 @@ from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from django.template.loader import render_to_string
+from weasyprint import HTML
+from datetime import timedelta
 # IMPORTACIONES LIMPIAS DE LA APP
 from .models import Examen, Comentario, TipoExamen, Paciente, PlantillaPatologo, Medico
 from .forms import ExamenForm, PlantillaPatologoForm
@@ -50,22 +53,19 @@ def limpiar_rut(rut):
 def dashboard(request):
     query = request.GET.get('q', '').strip()
     
-    # Base de todos los exámenes
     queryset = Examen.objects.all()
     
-    # Filtro de búsqueda
     if query:
-        # Nota: Ajusta 'limpiar_rut' si usas esa función aquí
         queryset = queryset.filter(
             Q(paciente__rut__icontains=query) |
             Q(paciente__nombre_completo__icontains=query) |
             Q(numero_correlativo__icontains=query)
         )
 
-    # 1. TABLA DE CRÍTICOS (Limitado a los 2 más recientes)
+    # 1. TABLA DE CRÍTICOS
     examenes_criticos = queryset.filter(resultado_critico=True).order_by('-fecha_recepcion')[:2]
 
-    # 2. TABLA PRINCIPAL ORDENADA POR ESTADO
+    # 2. TABLA PRINCIPAL
     examenes_principales = queryset.annotate(
         orden_estado=Case(
             When(estado='Ingresada', then=Value(1)),
@@ -76,15 +76,23 @@ def dashboard(request):
         )
     ).order_by('orden_estado', '-fecha_recepcion')
 
-    # Paginación para la tabla principal (Limitado a 3 por página)
     paginator = Paginator(examenes_principales, 3) 
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+
+    # 👇 NUEVA LÓGICA DE ALERTAS KPI 👇
+    # Calculamos la fecha límite (hace 15 días exactamente)
+    fecha_limite = timezone.now().date() - timedelta(days=15)
+    
+    # Buscamos biopsias que NO estén finalizadas y que hayan entrado antes de esa fecha límite
+    muestras_atrasadas = queryset.exclude(estado='Finalizado').filter(fecha_recepcion__lt=fecha_limite)
+    cantidad_atrasadas = muestras_atrasadas.count()
 
     context = {
         'page_obj': page_obj,
         'query': query,
         'examenes_criticos': examenes_criticos,
+        'cantidad_atrasadas': cantidad_atrasadas,  # Mandamos el número de atrasadas al HTML
     }
     return render(request, 'biopsias/dashboard.html', context)
 
@@ -628,3 +636,21 @@ def api_obtener_plantillas(request, tipo_examen_id):
 def etiqueta_frasco(request, examen_id):
     muestra = get_object_or_404(Examen, id=examen_id)
     return render(request, 'biopsias/etiqueta_qr.html', {'muestra': muestra})
+
+
+@login_required
+@user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
+def imprimir_consentimiento(request, paciente_id):
+    paciente = get_object_or_404(Paciente, id=paciente_id)
+    
+    # Renderizamos el HTML con los datos del paciente
+    html_string = render_to_string('biopsias/pdf/consentimiento_pdf.html', {'paciente': paciente})
+    
+    # Generamos el PDF con WeasyPrint
+    html = HTML(string=html_string, base_url=request.build_absolute_uri())
+    pdf = html.write_pdf()
+    
+    response = HttpResponse(pdf, content_type='application/pdf')
+    # Usamos 'inline' para que se abra en el navegador e imprimirlo rápido
+    response['Content-Disposition'] = f'inline; filename="Consentimiento_Ley21719_{paciente.rut}.pdf"'
+    return response

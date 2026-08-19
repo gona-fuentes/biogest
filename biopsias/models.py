@@ -11,7 +11,7 @@ class Paciente(models.Model):
     telefono = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+    consentimiento_firmado = models.FileField(upload_to='consentimientos/', null=True, blank=True, help_text="PDF firmado Ley 21.719")
     def __str__(self):
         return f"{self.nombre_completo} - {self.rut}"
 

@@ -23,7 +23,7 @@ urlpatterns = [
     # ==========================================
     path('fichas/', views.lista_pacientes, name='lista_pacientes'),
     path('fichas/<int:paciente_id>/', views.detalle_paciente, name='detalle_paciente'),
-
+    path('paciente/<int:paciente_id>/consentimiento/', views.imprimir_consentimiento, name='imprimir_consentimiento'),
     # ==========================================
     # 4. HISTORIAL, ESTADÍSTICAS Y REPORTES
     # ==========================================

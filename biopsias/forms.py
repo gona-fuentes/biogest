@@ -1,5 +1,6 @@
 from django import forms
 from .models import Examen, Laboratorio, Medico, PlantillaPatologo
+from django.core.exceptions import ValidationError
 
 class ExamenForm(forms.ModelForm):
     # --- Campos para la Ficha Clínica del Paciente (Todos Obligatorios) ---
@@ -36,23 +37,36 @@ class ExamenForm(forms.ModelForm):
     def clean_rut(self):
         rut = self.cleaned_data.get('rut', '')
         
-        # 1. Quitamos todo lo que no sea número o letra 'K', y lo pasamos a mayúscula
-        rut_limpio = ''.join(c for c in rut if c.isalnum()).upper()
-        
-        # 2. Si tiene longitud válida, lo formateamos matemáticamente a XX.XXX.XXX-X
-        if len(rut_limpio) > 1:
-            cuerpo = rut_limpio[:-1]
-            dv = rut_limpio[-1]
-            
-            try:
-                # El truco del formato {:,} pone comas cada 3 números, luego las cambiamos por puntos
-                cuerpo_formateado = "{:,}".format(int(cuerpo)).replace(',', '.')
-                return f"{cuerpo_formateado}-{dv}"
-            except ValueError:
-                pass # Si el cuerpo no es un número válido, lo deja pasar para que el modelo lo rechace
-                
-        return rut
+        # 1. Limpiamos puntos y guiones para hacer el cálculo
+        rut_limpio = rut.replace('.', '').replace('-', '').upper()
 
+        if not rut_limpio or len(rut_limpio) < 2:
+            raise ValidationError("Formato de RUT demasiado corto.")
+
+        cuerpo = rut_limpio[:-1]
+        dv_ingresado = rut_limpio[-1]
+
+        if not cuerpo.isdigit():
+            raise ValidationError("El cuerpo del RUT debe ser numérico.")
+
+        # 2. Algoritmo Módulo 11
+        reverso = map(int, reversed(cuerpo))
+        factores = cycle(range(2, 8))
+        suma = sum(d * f for d, f in zip(reverso, factores))
+        modulo = 11 - (suma % 11)
+
+        if modulo == 11:
+            dv_calculado = '0'
+        elif modulo == 10:
+            dv_calculado = 'K'
+        else:
+            dv_calculado = str(modulo)
+
+        # 3. Verificamos si coinciden
+        if dv_ingresado != dv_calculado:
+            raise ValidationError("El RUT ingresado no es válido (Dígito Verificador incorrecto).")
+
+        return rut # Si la matemática cuadra, lo dejamos pasar
 
 class PlantillaPatologoForm(forms.ModelForm):
     class Meta:

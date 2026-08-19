@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; line-height: 1.6; color: #333; margin: 40px; }
+        .header { text-align: center; border-bottom: 2px solid #047857; padding-bottom: 10px; margin-bottom: 30px; }
+        .title { font-size: 16px; font-weight: bold; text-transform: uppercase; color: #047857; margin-bottom: 5px; }
+        .subtitle { font-size: 10px; color: #666; }
+        .content { text-align: justify; margin-bottom: 40px; }
+        .datos-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .firma-box { margin-top: 80px; text-align: center; }
+        .linea-firma { border-top: 1px solid #000; width: 250px; margin: 0 auto 10px auto; }
+        .footer { position: fixed; bottom: 30px; left: 40px; right: 40px; font-size: 9px; text-align: center; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="title">CONSENTIMIENTO INFORMADO PARA TRATAMIENTO DE DATOS SENSIBLES</div>
+        <div class="subtitle">En cumplimiento de la Ley N° 21.719 sobre Protección de Datos Personales en Chile</div>
+    </div>
+
+    <div class="datos-box">
+        <strong>Identificación del Titular de los Datos:</strong><br><br>
+        <strong>Nombre Completo:</strong> {{ paciente.nombre_completo }}<br>
+        <strong>RUT:</strong> {{ paciente.rut }}<br>
+        <strong>Fecha de Nacimiento:</strong> {{ paciente.fecha_nacimiento|date:"d/m/Y"|default:"___/___/_____" }}<br>
+        <strong>Correo Electrónico:</strong> {{ paciente.email|default:"___________________________" }}<br>
+        <strong>Fecha de Emisión:</strong> {% now "d \d\e F \d\e Y" %}
+    </div>
+
+    <div class="content">
+        <p>Por el presente documento, en mi calidad de paciente y titular de los datos, otorgo mi <strong>consentimiento libre, previo, expreso, informado e inequívoco</strong> a <strong>Biogest Laboratorio</strong> para realizar el tratamiento de mis datos personales y datos sensibles (de salud, muestras biológicas y resultados histopatológicos).</p>
+        
+        <p>Declaro estar informado de que:</p>
+        <ol>
+            <li><strong>Finalidad:</strong> Mis datos serán utilizados exclusivamente para la gestión de exámenes anatomo-patológicos, trazabilidad de muestras, generación de informes médicos y comunicación con el profesional solicitante.</li>
+            <li><strong>Confidencialidad:</strong> Los datos serán tratados bajo estrictas medidas de seguridad y secreto profesional, no siendo compartidos con terceros ajenos al proceso de salud sin mi autorización expresa, salvo obligaciones legales.</li>
+            <li><strong>Derechos ARCO:</strong> Según la Ley N° 21.719, tengo derecho a solicitar el Acceso, Rectificación, Cancelación, Oposición y Portabilidad de mis datos personales en cualquier momento a través de los canales oficiales del laboratorio.</li>
+            <li><strong>Conservación:</strong> Los datos y el historial clínico serán conservados por el tiempo exigido por la normativa sanitaria vigente (Minsal).</li>
+        </ol>
+        
+        <p>Comprendo que la entrega de esta información es necesaria para la prestación del servicio médico solicitado.</p>
+    </div>
+
+    <div class="firma-box">
+        <div class="linea-firma"></div>
+        <strong>Firma del Paciente o Representante Legal</strong><br>
+        RUT: {{ paciente.rut }}
+    </div>
+
+    <div class="footer">
+        Documento generado por Sistema Biogest® - Cumplimiento Ley 21.719 de Protección de Datos.
+    </div>
+
+</body>
+</html>
