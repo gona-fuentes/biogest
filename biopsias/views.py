@@ -102,10 +102,10 @@ def dashboard(request):
 @user_passes_test(es_personal_autorizado, login_url='/usuarios/login/')
 def registrar_biopsia(request):
     if request.method == 'POST':
-        # 1. Hacemos una copia de los datos enviados para poder inyectarle el médico
+        # 1. Copia de datos para inyectar al médico
         datos_post = request.POST.copy()
 
-        # 2. RESOLVER EL MÉDICO SOLICITANTE ANTES DE VALIDAR
+        # 2. RESOLVER EL MÉDICO SOLICITANTE
         tipo_medico = datos_post.get('tipo_medico')
         
         if tipo_medico == 'nuevo':
@@ -113,28 +113,25 @@ def registrar_biopsia(request):
             nuevo_email = datos_post.get('nuevo_medico_email', '').strip()
             
             if nuevo_nombre:
-                # Lo creamos al vuelo en la base de datos
                 medico_obj, created = Medico.objects.get_or_create(
                     nombre=nuevo_nombre,
                     defaults={'email': nuevo_email if nuevo_email else None}
                 )
-                # ¡Truco! Le pasamos el ID recién creado al campo que Django está esperando
                 datos_post['medico_solicitante'] = medico_obj.id
         else:
-            # Si eligió uno de la lista, tomamos ese ID
             datos_post['medico_solicitante'] = datos_post.get('medico_existente')
 
-        # 3. Le entregamos los datos REPARADOS al formulario
+        # 3. Formulario con datos reparados
         form = ExamenForm(datos_post)
         
-        # 4. AHORA SÍ: Django validará que TODOS los campos vengan llenos
         if form.is_valid():
             
-            # Guardar Paciente
+            # 👇 GUARDAR PACIENTE (INCLUYENDO NOMBRE SOCIAL)
             paciente, created = Paciente.objects.get_or_create(
                 rut=form.cleaned_data.get('rut'),
                 defaults={
                     'nombre_completo': form.cleaned_data.get('nombre_completo'),
+                    'nombre_social': form.cleaned_data.get('paciente_nombre_social'),
                     'fecha_nacimiento': form.cleaned_data.get('fecha_nacimiento'),
                     'sexo': form.cleaned_data.get('sexo'),
                     'telefono': form.cleaned_data.get('telefono'),
@@ -143,6 +140,7 @@ def registrar_biopsia(request):
             )
             if not created:
                 paciente.nombre_completo = form.cleaned_data.get('nombre_completo')
+                paciente.nombre_social = form.cleaned_data.get('paciente_nombre_social')
                 paciente.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
                 paciente.sexo = form.cleaned_data.get('sexo')
                 paciente.telefono = form.cleaned_data.get('telefono')
@@ -157,20 +155,33 @@ def registrar_biopsia(request):
             examen = form.save(commit=False)
             examen.paciente = paciente
             examen.numero_correlativo = correlativo
-            examen.estado = 'Ingresada'
+            
+            # 👇 ALGORITMO DE ASIGNACIÓN AUTOMÁTICA (Minsal TAT)
+            # Busca al patólogo con menos exámenes "En Evaluación"
+            patologo_libre = User.objects.filter(groups__name='Patologo').annotate(
+                carga_laboral=Count('examenes_asignados', filter=Q(examenes_asignados__estado='En Evaluación'))
+            ).order_by('carga_laboral').first()
+
+            if patologo_libre:
+                examen.patologo = patologo_libre
+                examen.estado = 'En Evaluación'
+                msg_auditoria = f"Se ha ingresado la nueva muestra {correlativo}. Asignada automáticamente a Dr(a). {patologo_libre.last_name} (Balance de carga laboral)."
+            else:
+                examen.estado = 'Ingresada'
+                msg_auditoria = f"Se ha ingresado la nueva muestra con código correlativo {correlativo}. (Pendiente de asignación médica)."
+
             examen.save()
 
             Comentario.objects.create(
                 examen=examen,
                 user=request.user,
-                comentario=f"Se ha ingresado la nueva muestra con código correlativo {correlativo}.",
+                comentario=msg_auditoria,
                 tipo='Creación / Ingreso'
             )
 
-            messages.success(request, f"Biopsia {correlativo} registrada e ingresada al sistema con éxito.")
+            messages.success(request, f"Biopsia {correlativo} registrada exitosamente.")
             return redirect('dashboard')
         else:
-            # Si faltó algún campo (como el médico, fecha, rut, etc.), mostrará un error global
             messages.error(request, "✕ Faltan campos obligatorios. Revise el formulario y asegúrese de asignar al Médico Solicitante.")
             
     else:
@@ -557,6 +568,7 @@ def buscar_paciente_por_rut(request, rut):
             return JsonResponse({
                 'encontrado': True,
                 'nombre_completo': paciente.nombre_completo,
+                'nombre_social': paciente.nombre_social,
                 'fecha_nacimiento': paciente.fecha_nacimiento.strftime('%Y-%m-%d') if paciente.fecha_nacimiento else '',
                 'sexo': paciente.sexo,
                 'telefono': paciente.telefono,

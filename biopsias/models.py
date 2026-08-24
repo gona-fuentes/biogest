@@ -6,15 +6,18 @@ from simple_history.models import HistoricalRecords
 class Paciente(models.Model):
     rut = models.CharField(max_length=20, unique=True)
     nombre_completo = models.CharField(max_length=255)
+    nombre_social = models.CharField(max_length=150, null=True, blank=True, help_text="Circular N° 21 Minsal")
     fecha_nacimiento = models.DateField(null=True, blank=True)
     sexo = models.CharField(max_length=20, choices=[('M', 'Masculino'), ('F', 'Femenino'), ('O', 'Otro')], blank=True)
     telefono = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     consentimiento_firmado = models.FileField(upload_to='consentimientos/', null=True, blank=True, help_text="PDF firmado Ley 21.719")
+    
     def __str__(self):
+        if self.nombre_social:
+            return f"{self.nombre_social} ({self.nombre_completo}) - {self.rut}"
         return f"{self.nombre_completo} - {self.rut}"
-
 class Medico(models.Model):
     nombre = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)

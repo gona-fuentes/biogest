@@ -25,10 +25,18 @@
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <!-- CAJA PACIENTE CON LÓGICA CIRCULAR 21 -->
                 <div class="bg-gray-50 p-3 rounded border border-gray-100 min-w-0">
-                    <span class="block text-xs font-bold text-gray-500 uppercase"><i class="fa-solid fa-user"></i> Paciente</span>
-                    <span class="text-gray-800 font-semibold block break-words">{{ muestra.paciente.nombre_completo }}</span>
-                    <span class="block text-xs text-gray-500 font-mono">RUT: {{ muestra.paciente.rut }}</span>
+                    <span class="block text-xs font-bold text-gray-500 uppercase mb-1"><i class="fa-solid fa-user"></i> Paciente</span>
+                    
+                    {% if muestra.paciente.nombre_social %}
+                        <span class="text-emerald-700 font-black block break-words text-base">{{ muestra.paciente.nombre_social }}</span>
+                        <span class="block text-[11px] text-gray-500 mt-0.5 font-medium"><strong class="text-gray-600">Legal:</strong> {{ muestra.paciente.nombre_completo }}</span>
+                    {% else %}
+                        <span class="text-gray-800 font-semibold block break-words">{{ muestra.paciente.nombre_completo }}</span>
+                    {% endif %}
+                    
+                    <span class="block text-xs text-gray-500 font-mono mt-1">RUT: {{ muestra.paciente.rut }}</span>
                 </div>
 
                 <div class="bg-gray-50 p-3 rounded border border-gray-100 min-w-0">

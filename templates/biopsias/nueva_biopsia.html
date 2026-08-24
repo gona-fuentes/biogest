@@ -47,6 +47,16 @@
                         {{ form.nombre_completo.errors }}
                     </div>
 
+                    <!-- NUEVO: Nombre Social (Circular 21) -->
+                    <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
+                        <label class="block text-[11px] font-bold text-emerald-800 uppercase mb-1.5 flex items-center gap-1.5">
+                            <i class="fa-solid fa-address-card text-emerald-600"></i> Nombre Social (Circular 21)
+                        </label>
+                        {{ form.paciente_nombre_social }}
+                        <p class="text-[10px] text-emerald-600 mt-1.5 font-medium">Opcional. Garantiza un trato digno e inclusivo.</p>
+                        {{ form.paciente_nombre_social.errors }}
+                    </div>
+
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">F. Nacimiento</label>
@@ -310,18 +320,53 @@
 
                     statusDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-emerald-600 text-sm"></i>';
                     
-                    fetch(`/biopsias/api/paciente/${rut}/`)
+fetch(`/biopsias/api/paciente/${rut}/`)
                     .then(response => response.json())
                     .then(data => {
+                        // Capturamos todos los campos de la ficha
+                        const camposTexto = ['id_nombre_completo', 'id_paciente_nombre_social', 'id_fecha_nacimiento', 'id_telefono', 'id_email'];
+                        const selectSexo = document.getElementById('id_sexo');
+
                         if(data.encontrado) {
+                            // 1. RELLENAR DATOS
                             if(document.getElementById('id_nombre_completo')) document.getElementById('id_nombre_completo').value = data.nombre_completo;
+                            if(document.getElementById('id_paciente_nombre_social')) document.getElementById('id_paciente_nombre_social').value = data.nombre_social || '';
                             if(document.getElementById('id_fecha_nacimiento')) document.getElementById('id_fecha_nacimiento').value = data.fecha_nacimiento;
-                            if(document.getElementById('id_sexo')) document.getElementById('id_sexo').value = data.sexo;
+                            if(selectSexo) selectSexo.value = data.sexo;
                             if(document.getElementById('id_telefono')) document.getElementById('id_telefono').value = data.telefono;
                             if(document.getElementById('id_email')) document.getElementById('id_email').value = data.email;
                             
-                            statusDiv.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500 text-lg" title="Paciente encontrado"></i>';
+                            // 2. BLOQUEAR CAMPOS (Visual y funcionalmente)
+                            camposTexto.forEach(id => {
+                                let el = document.getElementById(id);
+                                if(el) {
+                                    el.readOnly = true;
+                                    el.classList.add('bg-slate-100', 'text-slate-500', 'cursor-not-allowed', 'border-slate-200');
+                                }
+                            });
+                            // Para el select usamos pointer-events ya que readonly no funciona igual en selects
+                            if(selectSexo) {
+                                selectSexo.style.pointerEvents = 'none';
+                                selectSexo.classList.add('bg-slate-100', 'text-slate-500', 'cursor-not-allowed', 'border-slate-200');
+                            }
+
+                            statusDiv.innerHTML = '<i class="fa-solid fa-lock text-emerald-500 text-lg" title="Paciente encontrado y bloqueado"></i> <span class="text-xs text-emerald-600 font-bold ml-1">Ficha bloqueada (Solo lectura)</span>';
                         } else {
+                            // SI ES NUEVO PACIENTE: DESBLOQUEAR Y LIMPIAR
+                            camposTexto.forEach(id => {
+                                let el = document.getElementById(id);
+                                if(el) {
+                                    el.readOnly = false;
+                                    el.value = ''; // Limpiamos
+                                    el.classList.remove('bg-slate-100', 'text-slate-500', 'cursor-not-allowed', 'border-slate-200');
+                                }
+                            });
+                            if(selectSexo) {
+                                selectSexo.style.pointerEvents = 'auto';
+                                selectSexo.value = '';
+                                selectSexo.classList.remove('bg-slate-100', 'text-slate-500', 'cursor-not-allowed', 'border-slate-200');
+                            }
+
                             statusDiv.innerHTML = '<span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-md"><i class="fa-solid fa-user-plus mr-1"></i>Nuevo Paciente</span>';
                         }
                     })
