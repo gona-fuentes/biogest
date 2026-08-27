@@ -3,36 +3,85 @@
 {% block title %}Administración Centralizada - Biogest{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-8">
+<div class="max-w-7xl mx-auto space-y-8">
+
+    <!-- CABECERA -->
     <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
             <i class="fa-solid fa-users-gear text-clinica"></i> Panel de Administración Centralizada
         </h1>
-        <p class="text-sm text-gray-500">Creación rápida de usuarios, roles y asignación de laboratorios.</p>
+        <p class="text-sm text-gray-500">Creación rápida de usuarios, roles, laboratorios y gestión de cuentas existentes.</p>
     </div>
 
+    <!-- MENSAJES -->
+    {% if messages %}
+        {% for mensaje in messages %}
+            <div class="p-4 rounded-md text-sm font-semibold {% if mensaje.tags == 'error' %}bg-red-100 text-red-800 border border-red-200{% else %}bg-emerald-100 text-emerald-800 border border-emerald-200{% endif %}">
+                <i class="fa-solid {% if mensaje.tags == 'error' %}fa-circle-exclamation{% else %}fa-circle-check{% endif %} mr-2"></i> {{ mensaje }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- PANELES DE GESTIÓN (ARRIBA) -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <!-- PANEL IZQUIERDO: CREAR USUARIO REFORZADO -->
         <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-clinica">
             <h3 class="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
                 <i class="fa-solid fa-user-plus text-clinica"></i> Registrar Nuevo Usuario
             </h3>
-            <form method="POST" class="space-y-4">
+            <form method="POST" class="space-y-4" id="form-crear-usuario">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="crear_usuario">
-                {% for field in form_user %}
-                <div>
-                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ field.label }}</label>
-                    {{ field }}
-                </div>
+                
+                {% for campo in form_user %}
+                    {% if campo.name != 'password' %}
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 uppercase mb-1">{{ campo.label }}</label>
+                        {{ campo }}
+                        {% if campo.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ campo.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 {% endfor %}
-                <button type="submit" class="w-full bg-clinica hover:bg-gray-900 text-white font-bold py-2.5 rounded transition shadow">
-                    Guardar Usuario
+
+                <!-- CAMPO DE CONTRASEÑA REFORZADO -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Contraseña de Acceso Seguro</label>
+                    <div class="relative flex items-center">
+                        {{ form_user.password }} 
+                        
+                        <div class="absolute right-2 flex items-center gap-1">
+                            <button type="button" onclick="togglePasswordVisibility('id_password', this)" class="p-1.5 text-gray-400 hover:text-clinica transition rounded-md" title="Mostrar/Ocultar">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button type="button" onclick="generarPasswordSegura('id_password')" class="p-1.5 text-gray-400 hover:text-emerald-500 transition rounded-md border-l border-gray-200 ml-1 pl-2" title="Generar Clave Aleatoria">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-2 flex gap-1 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <div id="fuerza-1" class="h-full w-1/3 transition-all duration-300"></div>
+                        <div id="fuerza-2" class="h-full w-1/3 transition-all duration-300"></div>
+                        <div id="fuerza-3" class="h-full w-1/3 transition-all duration-300"></div>
+                    </div>
+                    <p id="texto-fuerza" class="text-[10px] text-gray-500 font-semibold mt-1 text-right">Escriba una contraseña...</p>
+                    {% if form_user.password.errors %}
+                        <p class="text-red-500 text-xs mt-1">{{ form_user.password.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="w-full bg-clinica hover:bg-gray-900 text-white font-bold py-2.5 rounded transition shadow mt-6">
+                    <i class="fa-solid fa-user-check mr-2"></i> Crear y Autorizar Usuario
                 </button>
             </form>
         </div>
 
-        <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-patologia space-y-6">
-            <div>
+        <!-- PANEL DERECHO: CRUD DE LABORATORIOS -->
+        <div class="space-y-6">
+            <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-patologia">
                 <h3 class="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
                     <i class="fa-solid fa-building-user text-patologia"></i> Registrar Laboratorio
                 </h3>
@@ -41,18 +90,358 @@
                     <input type="hidden" name="action" value="crear_laboratorio">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Nombre del Laboratorio</label>
-                        <input type="text" name="nombre_lab" required class="w-full px-3 py-2 border rounded text-sm focus:ring-patologia">
+                        <input type="text" name="nombre_lab" required placeholder="Ej. Centro Patológico Central" class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-patologia">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-600 uppercase mb-1">RUT Institucional</label>
-                        <input type="text" name="rut_lab" required class="w-full px-3 py-2 border rounded text-sm focus:ring-patologia">
+                        <input type="text" name="rut_lab" required placeholder="Ej. 77.123.456-7" class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-patologia">
                     </div>
-                    <button type="submit" class="w-full bg-patologia hover:bg-emerald-600 text-white font-bold py-2.5 rounded transition shadow">
-                        Guardar Laboratorio
+                    <button type="submit" class="w-full bg-patologia hover:bg-emerald-600 text-white font-bold py-2.5 rounded transition shadow mt-2">
+                        <i class="fa-solid fa-plus mr-2"></i> Añadir Laboratorio
                     </button>
                 </form>
             </div>
+
+            <!-- Listado de Laboratorios Existentes -->
+            <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                <div class="bg-gray-50 p-3 border-b border-gray-200">
+                    <h3 class="font-bold text-gray-700 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-list-ol"></i> Laboratorios Registrados
+                    </h3>
+                </div>
+                <div class="max-h-[400px] overflow-y-auto p-2">
+                    <ul class="divide-y divide-gray-100">
+                        {% for lab in laboratorios %}
+                        <li class="py-3 px-2 hover:bg-emerald-50 rounded transition group">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-sm leading-tight">{{ lab.nombre }}</h4>
+                                    <span class="text-xs text-gray-500 font-mono block mt-0.5">RUT: {{ lab.rut }}</span>
+                                </div>
+                                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button type="button" onclick="abrirModalEditarLab('{{ lab.id }}', '{{ lab.nombre }}', '{{ lab.rut }}')" class="p-1.5 text-gray-500 hover:text-clinica bg-white border border-gray-200 rounded shadow-sm" title="Editar">
+                                        <i class="fa-solid fa-pen text-xs"></i>
+                                    </button>
+                                    <form method="POST" class="inline" onsubmit="return confirm('⚠️ ¿Está seguro que desea ELIMINAR el laboratorio {{ lab.nombre }}?');">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="eliminar_laboratorio">
+                                        <input type="hidden" name="lab_id" value="{{ lab.id }}">
+                                        <button type="submit" class="p-1.5 text-gray-500 hover:text-red-600 bg-white border border-gray-200 rounded shadow-sm" title="Eliminar">
+                                            <i class="fa-solid fa-trash text-xs"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="p-4 text-center text-xs text-gray-400 italic">No hay laboratorios registrados en el sistema.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE USUARIOS (ABAJO) -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+        <div class="p-4 bg-gray-50 border-b border-gray-200">
+            <h3 class="font-bold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-users text-clinica"></i> Cuentas Activas</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead class="bg-clinica text-white text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="py-3 px-4">Identificador</th>
+                        <th class="py-3 px-4">Nombres y Correo</th>
+                        <th class="py-3 px-4">Recinto Asignado</th>
+                        <th class="py-3 px-4">Permisos</th>
+                        <th class="py-3 px-4 text-center">Estado</th>
+                        <th class="py-3 px-4 text-center">Opciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for persona in usuarios %}
+                    <tr class="hover:bg-emerald-50 transition">
+                        <td class="py-3 px-4 font-bold text-gray-800">{{ persona.username }}</td>
+                        <td class="py-3 px-4">
+                            <span class="font-semibold block">{{ persona.get_full_name|default:"-" }}</span>
+                            <span class="text-xs text-gray-500">{{ persona.email|default:"Sin correo registrado" }}</span>
+                        </td>
+                        <td class="py-3 px-4 text-gray-600">{{ persona.laboratorio.nombre|default:"Control Central" }}</td>
+                        <td class="py-3 px-4">
+                            {% for grupo in persona.groups.all %}
+                                <span class="bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold px-2 py-0.5 rounded">{{ grupo.name }}</span>
+                            {% empty %}
+                                {% if persona.is_superuser %}
+                                    <span class="bg-gray-800 text-white border border-gray-900 text-xs font-bold px-2 py-0.5 rounded">Jefatura</span>
+                                {% else %}
+                                    <span class="text-gray-400 italic text-xs">Sin permisos</span>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            {% if persona.is_active %}
+                                <span class="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] uppercase font-bold px-2 py-0.5 rounded">Activo</span>
+                            {% else %}
+                                <span class="bg-red-100 text-red-800 border border-red-200 text-[10px] uppercase font-bold px-2 py-0.5 rounded">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="flex items-center justify-center gap-1.5">
+                                <button onclick="mostrarVentanaEdicion('{{ persona.id }}', '{{ persona.username }}', '{{ persona.first_name }}', '{{ persona.last_name }}', '{{ persona.email }}', '{% if persona.laboratorio %}{{ persona.laboratorio.id }}{% endif %}', '{% if persona.groups.all %}{{ persona.groups.all.0.name }}{% endif %}')" 
+                                        class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-semibold border border-gray-300 transition inline-flex items-center gap-1 shadow-sm">
+                                    <i class="fa-solid fa-pen-to-square text-patologia"></i> Modificar
+                                </button>
+
+                                <form method="POST" class="inline" onsubmit="return confirm('¿Confirma la {% if persona.is_active %}suspensión temporal{% else %}reactivación{% endif %} de privilegios de acceso para el usuario \'{{ persona.username }}\'?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="toggle_estado_usuario">
+                                    <input type="hidden" name="user_id" value="{{ persona.id }}">
+                                    <button type="submit" class="p-1.5 px-3 {% if persona.is_active %}text-red-600 hover:bg-red-50 hover:text-red-700{% else %}text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700{% endif %} bg-white border border-gray-300 rounded shadow-sm transition inline-flex items-center gap-1 text-xs font-semibold" title="{% if persona.is_active %}Suspender Cuenta{% else %}Reactivar Cuenta{% endif %}">
+                                        <i class="fa-solid {% if persona.is_active %}fa-user-lock{% else %}fa-user-check{% endif %}"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-6 text-gray-500">No existen cuentas registradas en este momento.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
+
+<!-- MODALES FLOTANTES -->
+
+<!-- 1. Modal para Modificar Cuenta de Usuario -->
+<div id="marco-modificar-cuenta" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full flex flex-col overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+            <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                <i class="fa-solid fa-user-pen text-clinica"></i> Actualizar Datos de Cuenta
+            </h3>
+            <button onclick="ocultarVentanaEdicion()" class="text-gray-400 hover:text-red-500 font-bold"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        
+        <form method="POST" class="p-5 space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="editar_usuario">
+            <input type="hidden" name="user_id" id="campo-identificador" value="">
+
+            {% if error_edicion %}
+            <div class="bg-red-50 text-red-800 border border-red-200 p-3 rounded-md text-xs font-semibold leading-relaxed shadow-sm">
+                <i class="fa-solid fa-lock text-red-600 mr-1"></i> {{ error_edicion }}
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nombre de Acceso</label>
+                    <input type="text" name="username" id="campo-acceso" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica text-sm bg-gray-100" readonly>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Permisos</label>
+                    <select name="rol" id="campo-rol" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica text-sm">
+                        <option value="Laboratorio">Personal Clínico</option>
+                        <option value="Patólogo">Médico Patólogo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nombres</label>
+                    <input type="text" name="first_name" id="campo-nombres" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Apellidos</label>
+                    <input type="text" name="last_name" id="campo-apellidos" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica text-sm">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Correo Electrónico</label>
+                <input type="email" name="email" id="campo-correo" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica text-sm">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Recinto de Trabajo</label>
+                <select name="laboratorio" id="campo-recinto" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica text-sm">
+                    <option value="">-- Jefatura / Sistema Central --</option>
+                    {% for recinto in laboratorios %}
+                        <option value="{{ recinto.id }}">{{ recinto.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="pt-2">
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Definir Nueva Clave <span class="text-gray-400 font-normal lowercase">(Dejar vacío para no modificar)</span></label>
+                <input type="password" name="password" id="campo-clave" placeholder="********" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-clinica text-sm">
+            </div>
+
+            <div class="flex justify-end gap-2 pt-4 border-t">
+                <button type="button" onclick="ocultarVentanaEdicion()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-sm font-semibold">Cerrar</button>
+                <button type="submit" class="px-5 py-2 bg-clinica hover:bg-gray-900 text-white rounded text-sm font-bold shadow flex items-center gap-1.5">
+                    <i class="fa-solid fa-floppy-disk"></i> Aplicar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 2. Modal para Editar Laboratorio -->
+<div id="modal-editar-lab" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-[60] p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full overflow-hidden border-t-4 border-patologia">
+        <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+            <h3 class="font-bold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-patologia"></i> Editar Laboratorio</h3>
+            <button type="button" onclick="cerrarModalEditarLab()" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="POST" class="p-5 space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="editar_laboratorio">
+            <input type="hidden" name="lab_id" id="edit-lab-id" value="">
+            
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nombre</label>
+                <input type="text" name="nombre_lab" id="edit-lab-nombre" required class="w-full px-3 py-2 border rounded focus:ring-patologia text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">RUT</label>
+                <input type="text" name="rut_lab" id="edit-lab-rut" required class="w-full px-3 py-2 border rounded focus:ring-patologia text-sm">
+            </div>
+            
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="cerrarModalEditarLab()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold text-gray-700">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-patologia hover:bg-emerald-600 text-white rounded text-sm font-bold shadow">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // LÓGICA DE CONTRASEÑA REFORZADA
+    const passInput = document.getElementById('id_password');
+    if(passInput) {
+        passInput.addEventListener('input', evaluarFuerzaPassword);
+    }
+
+    function evaluarFuerzaPassword() {
+        const val = passInput.value;
+        const barra1 = document.getElementById('fuerza-1');
+        const barra2 = document.getElementById('fuerza-2');
+        const barra3 = document.getElementById('fuerza-3');
+        const texto = document.getElementById('texto-fuerza');
+        
+        [barra1, barra2, barra3].forEach(b => b.className = 'h-full w-1/3 transition-all duration-300 bg-transparent');
+
+        if (val.length === 0) {
+            texto.innerText = "Escriba una contraseña...";
+            texto.className = "text-[10px] text-gray-500 font-semibold mt-1 text-right";
+            return;
+        }
+
+        let nivel = 0;
+        if (val.length >= 8) nivel += 1; 
+        if (/[A-Z]/.test(val) && /[0-9]/.test(val)) nivel += 1; 
+        if (/[^A-Za-z0-9]/.test(val)) nivel += 1; 
+
+        if (nivel === 1) {
+            barra1.classList.add('bg-red-500');
+            texto.innerText = "Débil";
+            texto.classList.add('text-red-500');
+        } else if (nivel === 2) {
+            barra1.classList.add('bg-yellow-400');
+            barra2.classList.add('bg-yellow-400');
+            texto.innerText = "Aceptable";
+            texto.classList.add('text-yellow-600');
+        } else if (nivel === 3) {
+            barra1.classList.add('bg-emerald-500');
+            barra2.classList.add('bg-emerald-500');
+            barra3.classList.add('bg-emerald-500');
+            texto.innerText = "Muy Segura";
+            texto.classList.add('text-emerald-600');
+        }
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+            icon.classList.add('text-clinica');
+        } else {
+            input.type = "password";
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+            icon.classList.remove('text-clinica');
+        }
+    }
+
+    function generarPasswordSegura(inputId) {
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        let password = "";
+        for (let i = 0, n = charset.length; i < 12; ++i) {
+            password += charset.charAt(Math.floor(Math.random() * n));
+        }
+        const input = document.getElementById(inputId);
+        input.value = password;
+        input.type = "text"; 
+        evaluarFuerzaPassword();
+    }
+
+    // MODALES DE USUARIO Y LABORATORIO
+    function mostrarVentanaEdicion(id, acceso, nombres, apellidos, correo, recintoId, rol) {
+        document.getElementById('campo-identificador').value = id;
+        document.getElementById('campo-acceso').value = acceso;
+        document.getElementById('campo-nombres').value = nombres;
+        document.getElementById('campo-apellidos').value = apellidos;
+        document.getElementById('campo-correo').value = correo;
+        document.getElementById('campo-clave').value = ''; 
+        
+        const selectorRecinto = document.getElementById('campo-recinto');
+        if(recintoId) {
+            selectorRecinto.value = recintoId;
+        } else {
+            selectorRecinto.value = '';
+        }
+
+        const selectorRol = document.getElementById('campo-rol');
+        if(rol) selectorRol.value = rol;
+
+        document.getElementById('marco-modificar-cuenta').classList.replace('hidden', 'flex');
+    }
+
+    function ocultarVentanaEdicion() {
+        document.getElementById('marco-modificar-cuenta').classList.replace('flex', 'hidden');
+    }
+
+    function abrirModalEditarLab(id, nombre, rut) {
+        document.getElementById('edit-lab-id').value = id;
+        document.getElementById('edit-lab-nombre').value = nombre;
+        document.getElementById('edit-lab-rut').value = rut;
+        document.getElementById('modal-editar-lab').classList.replace('hidden', 'flex');
+    }
+    
+    function cerrarModalEditarLab() {
+        document.getElementById('modal-editar-lab').classList.replace('flex', 'hidden');
+    }
+
+    {% if error_edicion and usuario_editado %}
+    document.addEventListener("DOMContentLoaded", function() {
+        mostrarVentanaEdicion(
+            '{{ usuario_editado.id }}', 
+            '{{ usuario_editado.username }}', 
+            '{{ usuario_editado.first_name|escapejs }}', 
+            '{{ usuario_editado.last_name|escapejs }}', 
+            '{{ usuario_editado.email }}', 
+            '{% if usuario_editado.laboratorio %}{{ usuario_editado.laboratorio.id }}{% endif %}', 
+            '{% if usuario_editado.groups.all %}{{ usuario_editado.groups.all.0.name }}{% endif %}'
+        );
+    });
+    {% endif %}
+</script>
 {% endblock %}
